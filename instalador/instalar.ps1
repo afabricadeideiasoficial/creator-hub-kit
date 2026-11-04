@@ -19,6 +19,9 @@
 #   escritos como \u00e3 e a funcao A os traduz na hora de mostrar. Mensagem nao leva caminho de pasta.
 # - Sem exit dentro do bloco: no iex ele fecharia a janela da pessoa. Sem $PSScriptRoot: no iex ele nao existe.
 # - Roda em Windows PowerShell 5.1: nada de ternario, &&, ||, nem Join-Path com mais de dois caminhos.
+# - O plugin entra por um marketplace numa pasta local, porque "marketplace add" com fonte no GitHub chama o git.
+#   O escopo e o da pasta Edicoes: o plugin nao aparece em outros projetos da pessoa. Computador da empresa, que
+#   tem o kit em Edicoes com skills de mesmo nome, nao recebe o plugin.
 # - Com 2>&1 em comando externo, $ErrorActionPreference tem de ficar em Continue, senao o 5.1 trata
 #   qualquer linha no stderr como erro fatal. Funcao que devolve verdadeiro/falso nao pode deixar sair
 #   mais nada: New-Item e companhia vao para Out-Null.
@@ -38,6 +41,7 @@
   $PYTHON_PACOTES_ATE = '2026-11-01T00:00:00Z'
 
   $KIT_RAW = 'https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main'
+  $KIT_ZIP = 'https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/zip/refs/heads/main'
   $ARQ_TRANSCRICAO = 'plugins/creator-hub/ferramentas/transcribe_local.py'
   $ARQ_PACKAGE = 'plugins/creator-hub/ferramentas/modelo/package.json'
   $ARQ_LOCK = 'plugins/creator-hub/ferramentas/modelo/package-lock.json'
@@ -49,7 +53,7 @@
 
   $CHECAR = ($args -contains '--checar') -or ($args -contains '-checar') -or ($env:KIT_CHECAR -eq '1')
   $FALHAS = New-Object System.Collections.Generic.List[string]
-  $E = @{ erro = ''; saida = '' }
+  $E = @{ erro = ''; saida = ''; empresa = $false }
 
   $RAIZ = Join-Path $HOME '.creator-hub'
   $BIN = Join-Path $RAIZ 'bin'
@@ -65,6 +69,7 @@
   $HF_CLI = Join-Path $PAC 'node_modules\hyperframes\dist\cli.js'
   $MARCA = Join-Path $PAC 'node_modules\.kit-lock'
   $EDICOES = Join-Path $HOME 'Edicoes'
+  $MKT = Join-Path $RAIZ 'marketplace'
   # O Node acha a pasta do Chrome pelo USERPROFILE, que quase sempre e igual ao $HOME.
   $PERFIL = $env:USERPROFILE
   if (-not $PERFIL) { $PERFIL = $HOME }
@@ -417,6 +422,11 @@
     $origem = "instalador/pasta-inicial/$caminho"
     $destino = Join-Path $EDICOES $caminho
     if (Test-Path -LiteralPath $destino) {
+      # Ligar o plugin acrescenta o marketplace a este arquivo, entao ele nao fica igual ao modelo.
+      if (($caminho -eq '.claude/settings.json') -and ((Get-Content -LiteralPath $destino -Raw) -like '*creator-hub*')) {
+        Linha "Pasta Edicoes, ${caminho}: ok"
+        return
+      }
       if ((PegarDoKit $origem) -and -not (Iguais (NoKit $origem) $destino)) {
         Aviso "o arquivo $caminho j\u00e1 existe na pasta Edicoes e \u00e9 diferente do modelo. N\u00e3o mexi nele."
       } else {
@@ -452,11 +462,125 @@
 
   # -------------------------------------------------------------------------
 
+  # -------------------------------------------------------------------------
+  # Plugin do kit
+
+  function AcharClaude {
+    if ($env:CLAUDE_CODE_EXECPATH -and (Test-Path -LiteralPath $env:CLAUDE_CODE_EXECPATH)) { return $env:CLAUDE_CODE_EXECPATH }
+    $c = Get-Command claude -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($c) { return $c.Source }
+    return $null
+  }
+
+  function BaixarMarketplace {
+    $novo = "$MKT.novo"
+    try {
+      if (Test-Path -LiteralPath $novo) { Remove-Item -LiteralPath $novo -Recurse -Force -ErrorAction Stop }
+      NovaPasta $novo
+      if ($env:KIT_FONTE) {
+        $origem = $env:KIT_FONTE
+      } else {
+        $zip = Join-Path $TMP 'kit.zip'
+        $pasta = Join-Path $TMP 'kit-zip'
+        if (-not (Baixar 'o plugin do kit' $KIT_ZIP $zip)) { return $false }
+        if (-not (Extrair $zip $pasta)) { return $false }
+        $origem = (Get-ChildItem -LiteralPath $pasta -Directory | Select-Object -First 1).FullName
+      }
+      if (-not (Test-Path -LiteralPath (Join-Path $origem 'plugins/creator-hub/.claude-plugin/plugin.json'))) { throw 'plugin incompleto' }
+      Copy-Item -LiteralPath (Join-Path $origem '.claude-plugin') -Destination $novo -Recurse -ErrorAction Stop
+      Copy-Item -LiteralPath (Join-Path $origem 'plugins') -Destination $novo -Recurse -ErrorAction Stop
+      Trocar $novo $MKT
+      return $true
+    } catch {
+      Registra "marketplace -> $_"
+      $E.erro = 'o plugin baixado veio incompleto. Rode o instalador de novo.'
+      return $false
+    }
+  }
+
+  function LigarPlugin($claude) {
+    Push-Location -LiteralPath $EDICOES
+    try {
+      return ((Roda $claude @('plugin', 'marketplace', 'add', $MKT, '--scope', 'project')) -and
+        (Roda $claude @('plugin', 'marketplace', 'update', 'creator-hub')) -and
+        (Roda $claude @('plugin', 'install', 'creator-hub@creator-hub', '--scope', 'project')) -and
+        (Roda $claude @('plugin', 'update', 'creator-hub@creator-hub', '--scope', 'project')))
+    } finally {
+      Pop-Location
+    }
+  }
+
+  function PluginLigado($claude) {
+    Push-Location -LiteralPath $EDICOES
+    try {
+      if (-not (Roda $claude @('plugin', 'list', '--json'))) { return $false }
+      # O Roda junta o stderr na saida: o JSON e o que esta entre o primeiro [ e o ultimo ].
+      $t = $E.saida
+      $i = $t.IndexOf('[')
+      $f = $t.LastIndexOf(']')
+      if ($i -lt 0 -or $f -lt $i) { return $false }
+      foreach ($p in ($t.Substring($i, $f - $i + 1) | ConvertFrom-Json)) {
+        if ($p.id -eq 'creator-hub@creator-hub' -and $p.enabled) { return $true }
+      }
+      return $false
+    } catch {
+      Registra "lista de plugins -> $_"
+      return $false
+    } finally {
+      Pop-Location
+    }
+  }
+
+  function InstalarPlugin {
+    if (Test-Path -LiteralPath (Join-Path $EDICOES '.claude/skills/novo-video/SKILL.md')) {
+      $E.empresa = $true
+      Linha 'Plugin do kit: este computador j\u00e1 tem o kit da empresa na pasta Edicoes. N\u00e3o instalei, para n\u00e3o misturar os dois.'
+      return
+    }
+    $claude = AcharClaude
+    if ($CHECAR) {
+      if (-not $claude) {
+        Linha 'Plugin do kit: s\u00f3 d\u00e1 para conferir de dentro do app do Claude.'
+      } elseif (PluginLigado $claude) {
+        Linha 'Plugin do kit: ok'
+      } else {
+        Linha 'Plugin do kit: falta'
+        AnotarFalha 'Plugin do kit'
+      }
+      return
+    }
+    Write-Host -NoNewline (A '  Plugin do kit: baixando... ')
+    $E.erro = ''
+    if (-not (BaixarMarketplace)) {
+      Write-Host (A 'n\u00e3o deu certo')
+      AnotarFalha "Plugin do kit: $($E.erro)"
+      return
+    }
+    Write-Host 'pronto'
+    if (-not $claude) {
+      Linha 'Plugin do kit: falta ligar.'
+      AnotarFalha 'Plugin do kit: este comando n\u00e3o rodou dentro do Claude. Abra o app do Claude numa sess\u00e3o qualquer e pe\u00e7a para ele rodar este mesmo comando de instala\u00e7\u00e3o.'
+      return
+    }
+    Write-Host -NoNewline (A '  Plugin do kit: ligando na pasta Edicoes... ')
+    if ((LigarPlugin $claude) -and (PluginLigado $claude)) {
+      Write-Host 'pronto'
+      return
+    }
+    Write-Host (A 'n\u00e3o deu certo')
+    AnotarFalha 'Plugin do kit: n\u00e3o consegui ligar o plugin na pasta Edicoes. Rode o instalador de novo.'
+  }
+
   function Resumo {
     Titulo 'Resumo'
     if ($FALHAS.Count -eq 0) {
       if ($CHECAR) { Linha 'Tudo instalado.' } else { Linha 'Tudo pronto: programas, transcri\u00e7\u00e3o, ferramentas de v\u00eddeo e pasta Edicoes.' }
-      Linha 'Agora abra o app do Claude, escolha a pasta Edicoes (na sua pasta de usu\u00e1rio) e digite /fabrica.'
+      if ($E.empresa) {
+        Linha 'Este computador continua usando o kit da empresa.'
+      } elseif (-not $CHECAR) {
+        Linha 'Agora abra uma sess\u00e3o NOVA no app do Claude, na pasta Edicoes (na sua pasta de usu\u00e1rio), e digite /fabrica.'
+        Linha 'A sess\u00e3o que est\u00e1 aberta agora n\u00e3o enxerga o plugin.'
+      }
       return
     }
     Linha "$($FALHAS.Count) item(ns) com problema:"
@@ -563,6 +687,7 @@
     }
     CopiarInicial 'CLAUDE.md'
     CopiarInicial '.claude/settings.json'
+    InstalarPlugin
 
     # O cache so serve para retomar uma instalacao interrompida.
     if ((-not $CHECAR) -and $FALHAS.Count -eq 0) {

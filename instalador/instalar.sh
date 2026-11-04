@@ -18,6 +18,9 @@
 # - Roda em zsh, bash e sh. Nada de array, [[ ]], print ou glob, e nada de variável chamada path ou status.
 # - Nunca chame git, python3, make, cc, xcrun nem otool: num Mac sem as ferramentas de desenvolvedor, eles
 #   abrem a janela da Apple. Pelo mesmo motivo o uv só usa o Python dele (UV_PYTHON_PREFERENCE).
+# - O plugin entra por um marketplace numa pasta local, porque "marketplace add" com fonte no GitHub chama o git.
+#   O escopo é o da pasta Edicoes: o plugin não aparece em outros projetos da pessoa. Computador da empresa, que
+#   tem o kit em ~/Edicoes com skills de mesmo nome, não recebe o plugin.
 # - O script chega por pipe: tudo fica em funções e a única chamada é a última linha, assim um download
 #   cortado no meio não executa nada pela metade. Os comandos não podem ler a entrada padrão.
 
@@ -33,6 +36,7 @@ PYTHON_VERSAO=3.12
 PYTHON_PACOTES_ATE=2026-11-01T00:00:00Z
 
 KIT_RAW=https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main
+KIT_TARBALL=https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/tar.gz/refs/heads/main
 ARQ_TRANSCRICAO=plugins/creator-hub/ferramentas/transcribe_local.py
 ARQ_PACKAGE=plugins/creator-hub/ferramentas/modelo/package.json
 ARQ_LOCK=plugins/creator-hub/ferramentas/modelo/package-lock.json
@@ -268,6 +272,11 @@ instalar_pacotes() {
 copiar_inicial() {  # <caminho dentro da pasta inicial>
   origem="instalador/pasta-inicial/$1"
   if [ -f "$EDICOES/$1" ]; then
+    # Ligar o plugin acrescenta o marketplace a este arquivo, então ele não fica igual ao modelo.
+    if [ "$1" = ".claude/settings.json" ] && grep -q 'creator-hub' "$EDICOES/$1"; then
+      linha "Pasta Edicoes, $1: ok"
+      return 0
+    fi
     if pegar_do_kit "$origem" && ! cmp -s "$TMP/kit/$origem" "$EDICOES/$1"; then
       aviso "o arquivo $1 já existe na pasta Edicoes e é diferente do modelo. Não mexi nele."
     else
@@ -295,7 +304,12 @@ resumo() {
   titulo "Resumo"
   if [ "$N_FALHAS" -eq 0 ]; then
     [ "$CHECAR" = 1 ] && linha "Tudo instalado." || linha "Tudo pronto: programas, transcrição, ferramentas de vídeo e pasta Edicoes."
-    linha "Agora abra o app do Claude, escolha a pasta Edicoes (na sua pasta de usuário) e digite /fabrica."
+    if [ "$KIT_DA_EMPRESA" = 1 ]; then
+      linha "Este computador continua usando o kit da empresa."
+    elif [ "$CHECAR" != 1 ]; then
+      linha "Agora abra uma sessão NOVA no app do Claude, na pasta Edicoes (na sua pasta de usuário), e digite /fabrica."
+      linha "A sessão que está aberta agora não enxerga o plugin."
+    fi
     exit 0
   fi
   linha "$N_FALHAS item(ns) com problema:"
@@ -308,12 +322,110 @@ resumo() {
   exit 1
 }
 
+# ---------------------------------------------------------------------------
+# Plugin do kit
+
+achar_claude() {
+  CLAUDE_EXE=""
+  if [ -n "${CLAUDE_CODE_EXECPATH:-}" ] && [ -x "$CLAUDE_CODE_EXECPATH" ]; then
+    CLAUDE_EXE=$CLAUDE_CODE_EXECPATH
+  elif command -v claude >/dev/null 2>&1; then
+    CLAUDE_EXE=$(command -v claude)
+  fi
+}
+
+baixar_marketplace() {
+  novo="$RAIZ/marketplace.novo"
+  rm -rf "$novo"
+  mkdir -p "$novo"
+  if [ -n "${KIT_FONTE:-}" ]; then
+    origem=$KIT_FONTE
+  else
+    baixar "o plugin do kit" "$KIT_TARBALL" "$TMP/kit.tar.gz" || return 1
+    mkdir -p "$TMP/kit-tar"
+    if ! tar -xzf "$TMP/kit.tar.gz" -C "$TMP/kit-tar" --strip-components=1 >>"$LOG" 2>&1; then
+      ERRO="o plugin baixado veio com problema. Rode o instalador de novo."
+      return 1
+    fi
+    origem="$TMP/kit-tar"
+  fi
+  if [ ! -f "$origem/plugins/creator-hub/.claude-plugin/plugin.json" ] || ! cp -R "$origem/.claude-plugin" "$origem/plugins" "$novo/" >>"$LOG" 2>&1; then
+    rm -rf "$novo"
+    ERRO="o plugin baixado veio incompleto. Rode o instalador de novo."
+    return 1
+  fi
+  rm -rf "$MKT"
+  mv "$novo" "$MKT"
+}
+
+ligar_plugin() {
+  (
+    cd "$EDICOES" || exit 1
+    "$CLAUDE_EXE" plugin marketplace add "$MKT" --scope project \
+      && "$CLAUDE_EXE" plugin marketplace update creator-hub \
+      && "$CLAUDE_EXE" plugin install creator-hub@creator-hub --scope project \
+      && "$CLAUDE_EXE" plugin update creator-hub@creator-hub --scope project
+  ) >>"$LOG" 2>&1
+}
+
+plugin_ligado() {
+  (cd "$EDICOES" && "$CLAUDE_EXE" plugin list --json 2>>"$LOG") | "$BIN/node" -e '
+    let t = "";
+    process.stdin.on("data", (d) => (t += d)).on("end", () => {
+      let lista = [];
+      try { lista = JSON.parse(t); } catch { process.exit(1); }
+      process.exit(lista.some((p) => p.id === "creator-hub@creator-hub" && p.enabled) ? 0 : 1);
+    });'
+}
+
+instalar_plugin() {
+  if [ -e "$EDICOES/.claude/skills/novo-video/SKILL.md" ]; then
+    KIT_DA_EMPRESA=1
+    linha "Plugin do kit: este computador já tem o kit da empresa na pasta Edicoes. Não instalei, para não misturar os dois."
+    return 0
+  fi
+  achar_claude
+  if [ "$CHECAR" = 1 ]; then
+    if [ -z "$CLAUDE_EXE" ]; then
+      linha "Plugin do kit: só dá para conferir de dentro do app do Claude."
+    elif plugin_ligado; then
+      linha "Plugin do kit: ok"
+    else
+      linha "Plugin do kit: falta"
+      anotar_falha "Plugin do kit"
+    fi
+    return 0
+  fi
+  printf '  Plugin do kit: baixando... '
+  ERRO=""
+  if ! baixar_marketplace; then
+    printf 'não deu certo\n'
+    anotar_falha "Plugin do kit: $ERRO"
+    return 1
+  fi
+  printf 'pronto\n'
+  if [ -z "$CLAUDE_EXE" ]; then
+    linha "Plugin do kit: falta ligar."
+    anotar_falha "Plugin do kit: este comando não rodou dentro do Claude. Abra o app do Claude numa sessão qualquer e peça para ele rodar este mesmo comando de instalação."
+    return 1
+  fi
+  printf '  Plugin do kit: ligando na pasta Edicoes... '
+  if ligar_plugin && plugin_ligado; then
+    printf 'pronto\n'
+    return 0
+  fi
+  printf 'não deu certo\n'
+  anotar_falha "Plugin do kit: não consegui ligar o plugin na pasta Edicoes. Rode o instalador de novo."
+  return 1
+}
+
 principal() {
   CHECAR=0
   [ "${1:-}" = "--checar" ] && CHECAR=1
   [ "${KIT_CHECAR:-}" = 1 ] && CHECAR=1
   FALHAS=""
   N_FALHAS=0
+  KIT_DA_EMPRESA=0
 
   if [ "$(uname -s)" != Darwin ]; then
     printf 'Este instalador é para Mac. No Windows, use o instalar.ps1.\n'
@@ -330,6 +442,7 @@ principal() {
   VU="$RAIZ/video-use"
   PAC="$RAIZ/pacotes"
   EDICOES="$HOME/Edicoes"
+  MKT="$RAIZ/marketplace"
 
   if [ "$CHECAR" = 1 ]; then
     TMP=$(mktemp -d "${TMPDIR:-/tmp}/creator-hub.XXXXXX") || exit 1
@@ -401,6 +514,7 @@ principal() {
   fi
   copiar_inicial "CLAUDE.md"
   copiar_inicial ".claude/settings.json"
+  instalar_plugin
 
   # O cache só serve para retomar uma instalação interrompida.
   [ "$CHECAR" != 1 ] && [ "$N_FALHAS" -eq 0 ] && rm -rf "$RAIZ/cache"

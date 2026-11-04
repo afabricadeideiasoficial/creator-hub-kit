@@ -22,14 +22,19 @@ Para saber os estilos, chame `listar_estilos`.
 Confira, sem instalar nada:
 
 ```bash
-ls "$HOME/.creator-hub/bin" "$HOME/.creator-hub/pacotes/node_modules/hyperframes/package.json" "$HOME/.creator-hub/video-use/helpers/transcribe_local.py"
+ls "$HOME/.creator-hub/bin" "$HOME/.creator-hub/marketplace/plugins" "$HOME/.creator-hub/pacotes/node_modules/hyperframes/package.json" "$HOME/.creator-hub/video-use/helpers/transcribe_local.py"
 ```
 
 Depois chame `listar_estilos`. Se ela responder, a assinatura e o conector estão certos. Se faltar algum arquivo, oriente a pessoa a rodar o instalador do Creator Hub de novo, como ensina a aula de instalação.
 
 ## Atualizar
 
-Os estilos e os motores ficam no servidor e chegam sozinhos. Só as instruções do kit precisam de atualização, e o app mostra isso na lista de plugins: digite `/plugin`, escolha `creator-hub` e atualize.
+Os estilos e os motores ficam no servidor e chegam sozinhos. As instruções do kit mudam de vez em quando. Para atualizar, rode de novo a instalação, que só refaz o que mudou:
+
+- no Mac: `curl -fsSL https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main/instalador/instalar.sh | zsh`
+- no Windows: `irm https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main/instalador/instalar.ps1 | iex`
+
+Depois, peça para a pessoa abrir uma sessão nova.
 
 ## Problemas
 

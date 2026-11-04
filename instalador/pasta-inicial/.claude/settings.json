@@ -1,15 +1,4 @@
 {
-  "extraKnownMarketplaces": {
-    "creator-hub": {
-      "source": {
-        "source": "github",
-        "repo": "afabricadeideiasoficial/creator-hub-kit"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "creator-hub@creator-hub": true
-  },
   "permissions": {
     "defaultMode": "acceptEdits",
     "allow": [
