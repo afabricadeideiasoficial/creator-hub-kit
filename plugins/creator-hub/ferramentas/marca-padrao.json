@@ -1,0 +1,15 @@
+{
+  "soLegenda": true,
+  "fonteDestaque": { "familia": "Anton", "arquivo": "assets/fonts/Anton-Regular.ttf", "formato": "truetype", "peso": 400 },
+  "fonteTitulo": "\"Montserrat\", Arial, sans-serif",
+  "fonteTexto": "\"Montserrat\", Arial, sans-serif",
+  "fontesExtras": [{ "familia": "Montserrat", "arquivo": "assets/fonts/Montserrat-SemiBold.ttf", "formato": "truetype" }],
+  "corTexto": "#ffffff",
+  "gradienteDestaque": null,
+  "brilhoDestaque": null,
+  "corMarcacao": "#ffd43b",
+  "corLinhaDivisoria": "#ffffff",
+  "musica": null,
+  "clique": null,
+  "correcoes": []
+}

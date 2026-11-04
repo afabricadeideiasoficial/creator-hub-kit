@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "fabrica": {
+      "type": "http",
+      "url": "https://kit.creatorflowia.com/mcp"
+    }
+  }
+}

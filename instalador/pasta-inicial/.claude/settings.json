@@ -1,0 +1,24 @@
+{
+  "extraKnownMarketplaces": {
+    "creator-hub": {
+      "source": {
+        "source": "github",
+        "repo": "afabricadeideiasoficial/creator-hub-kit"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "creator-hub@creator-hub": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "mcp__plugin_creator-hub_fabrica__listar_estilos",
+      "mcp__plugin_creator-hub_fabrica__rascunhar_roteiro",
+      "mcp__plugin_creator-hub_fabrica__gerar_legendas",
+      "Bash(curl -sS:*)",
+      "Bash(mkdir:*)",
+      "Bash(bash *creator-hub*ferramentas*)"
+    ]
+  }
+}

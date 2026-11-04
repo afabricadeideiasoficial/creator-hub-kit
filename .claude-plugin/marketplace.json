@@ -1,0 +1,11 @@
+{
+  "name": "creator-hub",
+  "owner": { "name": "Creator Flow" },
+  "plugins": [
+    {
+      "name": "creator-hub",
+      "source": "./plugins/creator-hub",
+      "description": "O kit de edição de vídeo do Creator Hub. Exige assinatura ativa."
+    }
+  ]
+}
