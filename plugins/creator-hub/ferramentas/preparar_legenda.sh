@@ -43,6 +43,9 @@ DUR=$(ffprobe -v error -select_streams v:0 -show_entries packet=pts_time -of csv
 
 printf '%s\n' "$SRC" > "$L/fonte.txt"
 
+# A prévia mostra a legenda sobre o vídeo. Link sem ocupar espaço; em outro disco, cópia.
+node -e 'const fs=require("fs");const[a,b]=process.argv.slice(1);fs.rmSync(b,{force:true});try{fs.linkSync(a,b)}catch{fs.copyFileSync(a,b)}' "$SRC" "$L/assets/video.mp4"
+
 node "$FERRAMENTAS/montar_video_json.cjs" "$T" "$L" "$(basename "$V")" "$NOME" "$DUR" "$ESTILO" "$FERRAMENTAS/marca-padrao.json" "$CLIENTE/marca.json"
 
 echo "$NOME: pasta pronta em $L (duração ${DUR}s, estilo $ESTILO)."

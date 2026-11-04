@@ -16,6 +16,7 @@ L="$V/2-legendas"
 
 [ -f "$L/index.html" ] || { echo "Falta o index.html: gere as legendas antes de renderizar."; exit 1; }
 [ -f "$L/fonte.txt" ] || { echo "Falta o fonte.txt: prepare o vídeo de novo."; exit 1; }
+grep -q 'id="a-roll"' "$L/index.html" && { echo "O index.html é o da prévia, com o vídeo dentro. Gere as legendas de novo em modo so-legenda antes de renderizar."; exit 1; }
 
 SRC="$(tr -d '\r' < "$L/fonte.txt")"
 [ -f "$SRC" ] || { echo "Não encontrei o vídeo original em: $SRC"; exit 1; }

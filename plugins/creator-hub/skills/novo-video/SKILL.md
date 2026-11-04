@@ -46,19 +46,20 @@ Escreva `project.md` na pasta do vídeo, começando por "Estado atual", e atuali
 
 Chame `rascunhar_roteiro` e rode o comando que ela devolver, na pasta `2-legendas`, uma vez só por vídeo.
 
-Revise `roteiro-legendas.txt` seguindo as instruções do topo do arquivo e as metas que o comando mostrou:
+Revise `roteiro-legendas.txt` seguindo as instruções do topo do arquivo e as metas que o comando mostrou. Edite o arquivo com a sua ferramenta de edição, nunca com um script: script pede permissão à pessoa a cada vez.
 
-- Corrija a grafia só onde o Whisper errou um nome: as palavras precisam continuar as mesmas e na mesma ordem do `transcript.json`. Nomes recorrentes vão em `correcoes` no `marca.json` do cliente.
+- Corrija a grafia só onde o Whisper errou um nome: as palavras precisam continuar as mesmas e na mesma ordem do `transcript.json`. Nomes recorrentes e palavras que o Whisper separa errado, como "pós -cirúrgico", vão em `correcoes` no `marca.json` do cliente; depois disso, rode o preparo de novo.
 - Escolha os destaques pelo sentido da frase: a palavra que a pessoa enfatiza, o número, o conceito.
 - Se ouvir no texto a voz de quem está gravando ("de novo", "boa", instruções), comece essa linha com `~`.
 
 ## 5. Gerar
 
-Chame `gerar_legendas` com `modo: "so-legenda"` e rode o comando na pasta `2-legendas`. Se ele mostrar um erro ou uma conferência com ajustes, corrija o roteiro e rode o mesmo comando de novo enquanto o pedido valer. Passados 10 minutos, chame a ferramenta outra vez.
+Chame `gerar_legendas` com `modo: "so-legenda"` e rode o comando na pasta `2-legendas`, exatamente como veio, sem acrescentar nada a ele.
+
+- Se ele mostrar um erro, corrija o roteiro e rode o mesmo comando de novo.
+- Se ele mostrar uma conferência com ajustes, corrija o roteiro e chame `gerar_legendas` de novo, porque o pedido já fechou.
 
 Nunca escreva o `index.html` à mão.
-
-## 6. Prévia
 
 Confira a margem e corrija o que sair dela:
 
@@ -66,17 +67,19 @@ Confira a margem e corrija o que sair dela:
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/medir_margens.sh" "<pasta-do-video>/2-legendas"
 ```
 
-Depois abra a prévia:
+## 6. Prévia
+
+Para a pessoa ver a legenda sobre o vídeo, chame `gerar_legendas` com `modo: "com-video"` e rode o comando. Ignore a conferência desse resultado, porque ela já foi feita no passo 5 e conta telas de impacto que este vídeo não usa. Depois abra a prévia:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/previa.sh" "<pasta-do-video>/2-legendas"
 ```
 
-Abra `http://localhost:30710` no painel do navegador. Diga em 2 ou 3 linhas o que entrou no vídeo e espere a pessoa aprovar ou pedir ajustes. A cada ajuste, volte ao passo 5.
+Abra `http://localhost:30710` no painel do navegador. Diga em 2 ou 3 linhas o que entrou no vídeo e que basta apertar o play, ignorando os outros botões da tela. Espere a pessoa aprovar ou pedir ajustes. A cada ajuste, volte ao passo 5.
 
 ## 7. Render
 
-Só com a aprovação:
+Só com a aprovação. Chame `gerar_legendas` com `modo: "so-legenda"`, rode o comando e depois:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/legendar.sh" "<pasta-do-video>"
