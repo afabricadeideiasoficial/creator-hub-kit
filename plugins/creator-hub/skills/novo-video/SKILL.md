@@ -9,6 +9,8 @@ Quem usa isto nem sempre é técnico. Fale em português simples e mostre as esc
 
 Se a pasta do vídeo já tem `project.md`, leia o "Estado atual" e continue de onde parou. Não refaça a ficha.
 
+Para mostrar um arquivo à pessoa, rode `abrir.sh`, que abre o arquivo sozinho, e cite o caminho completo que ele mostrar. Nunca escreva link para o arquivo, como `[mapa](../mapa.html)`: o app procura o link a partir da pasta da sessão, e ele quebra.
+
 Se uma ferramenta do kit disser que o Creator Hub não está ativo, mostre a mensagem com o link e pare. Se o Claude pedir login no conector, diga para a pessoa digitar `/mcp` e escolher `fabrica`.
 
 ## 1. Achar o vídeo
@@ -28,12 +30,32 @@ Chame `listar_estilos`. Depois faça uma única chamada de `AskUserQuestion`, pu
 | Tipo de edição | Edição completa (bruto: corte, legenda e mapa de edição) · Só legenda (vídeo já editado) |
 | Estilo | os estilos prontos, com o nome e o resumo que a ferramenta devolveu, o Padrão da marca primeiro como recomendado |
 | Música (na edição completa) | Sem música · Vou escolher um arquivo. A música é da pessoa: peça o caminho do arquivo |
+| Cor (na edição completa) | Vídeo normal (celular ou câmera sem LOG), recomendado · Gravei em LOG: Sony S-Log3 · Panasonic V-Log · iPhone Apple Log |
 
-Só use estilos que a ferramenta listou como prontos. Se a pessoa pedir um estilo que está "a caminho", diga que ainda não chegou ao kit dela.
+Só use estilos que a ferramenta listou como prontos. Se a pessoa pedir um estilo que está "a caminho", diga que ainda não chegou ao kit dela. Aqui entram só os estilos com a pessoa na tela: para um estilo marcado como vídeo animado, use a skill `plano-continuo`.
 
 Crie a pasta do vídeo em `~/Edicoes/<Cliente>/<Mês>/<nome-sem-acento>/`. Escreva `project.md` nela, começando por "Estado atual", e atualize a cada etapa.
 
+Na edição completa, confira os efeitos sonoros, que trazem o clique de câmera das legendas:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/instalar_efeitos.sh"
+```
+
+Se ele disser que faltam, chame `baixar_efeitos`, rode o comando que ela devolver e rode este script de novo.
+
 Rode os comandos que as ferramentas devolvem exatamente como vieram, na pasta indicada, sem acrescentar nada a eles. Edite os arquivos com a sua ferramenta de edição, nunca com um script: script pede permissão à pessoa a cada vez. Nunca escreva à mão um arquivo que uma ferramenta gera.
+
+**Para conferir, use só os scripts do kit.** Não rode comandos próprios, como `ls`, `cat`, `grep`, `tail`, `ffmpeg`, `ffprobe` ou `node`: cada um abre uma janela de permissão para a pessoa, e os scripts do kit não abrem.
+
+| Para saber | Rode |
+|---|---|
+| duração, tamanho e como está a imagem de um vídeo | `bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/quadros.sh" "<video>" "<pasta-do-video>/quadros/<nome>.jpg"` e olhe o jpg |
+| palavras, tempos e volume do bruto | `bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/ver_trecho.sh" "<pasta-do-video>" 3.9-5.4`, ou sem trechos para ver todas as palavras |
+| como a legenda fica num instante | `bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/plano/fotos.sh" "<pasta-do-video>/2-legendas" "1.2,3.4"` e olhe as fotos de `2-legendas/snapshots` |
+| se a tela da prévia alterou a edição | `bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/conferir_comp.sh" "<pasta-do-video>/2-legendas"` |
+
+Para ler um arquivo ou a saída de um comando em segundo plano, use a sua ferramenta de leitura de arquivos. Nunca clique na tela da prévia para conferir: um clique na linha do tempo muda a edição. Se faltar uma informação que esses scripts não dão, diga isso à pessoa em vez de improvisar.
 
 ## 3. Edição completa
 
@@ -44,6 +66,20 @@ Vá até o fim destes passos e depois siga para "Mapa, prévia e render".
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/preparar_corte.sh" "<bruto>" "<pasta-do-video>" "<pasta-do-cliente>" "<id-do-estilo>"
 ```
+
+**Corrigir a cor.** Só se a pessoa gravou em LOG. Use `slog3`, `vlog` ou `applelog`:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/cor/preparar_cor.sh" "<pasta-do-video>" "<entrada>"
+```
+
+Olhe `1-corte/cor-comparacao.jpg` e abra o arquivo para a pessoa:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/abrir.sh" "<pasta-do-video>/1-corte/cor-comparacao.jpg"
+```
+
+A S-Log3 foi conferida com vídeo real; V-Log e Apple Log seguem a fórmula do fabricante e ainda não foram testadas com vídeo de câmera, então peça atenção à comparação. Se o rosto ficar escuro, rode de novo com `--exposicao 0.5` ou `--exposicao 1`, porque o ajuste é na exposição. Se a pessoa tiver uma LUT dela, acrescente `--look "<arquivo.cube>" --look-espera rec709 --intensidade 0.5`. Siga quando ela aprovar.
 
 **Escolher os takes.** Chame `analisar_falas` e rode o comando na pasta `1-corte`. Leia o `falas.txt` inteiro e escreva o `takes.json` no formato que o comando mostrou.
 
@@ -64,7 +100,13 @@ bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/cortar.sh" "<pasta-do-video>"
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/preparar_depois_do_corte.sh" "<pasta-do-video>" "<pasta-do-cliente>" "<id-do-estilo>" "<arquivo-da-musica>"
 ```
 
-Leia o texto de `2-legendas/transcript.json` e compare com as falas do `takes.json`. Se faltar uma palavra no começo de um trecho, use `"forcar_inicio": true` nesse take; se faltar no fim, aumente o `fim`. Se uma palavra sair partida ou diferente, ponha a pausa daquele ponto em `"nao_cortar"` nesse take. Se sobrar voz de bastidor, encurte o take. Nesses casos, volte a "Cortar".
+O script termina com a conferência das palavras, que compara as falas do `takes.json` com o que a transcrição ouviu no corte. Leia essa conferência. Se ela apontar uma diferença:
+
+- Se faltou uma palavra no começo de um trecho, use `"forcar_inicio": true` nesse take. Se faltou no fim, aumente o `fim`.
+- Se uma palavra saiu partida ou trocada, como `era "esse", ouvi "o"`, ponha a pausa daquele ponto em `"nao_cortar"` nesse take. Se for o começo do take, use `"forcar_inicio": true`.
+- Se sobrou voz de bastidor, encurte o take.
+
+Nesses casos, volte a "Cortar". Se a diferença for só outra grafia de um nome, siga. Se você mudou um take de propósito, atualize a `fala` dele.
 
 **Roteiro.** Chame `rascunhar_roteiro` e rode o comando na pasta `2-legendas`, uma vez só por vídeo. Revise como em "Revisar o roteiro".
 
@@ -111,6 +153,7 @@ Siga as instruções do topo do `roteiro-legendas.txt` e as metas que o comando 
 - Corrija a grafia só onde o Whisper errou um nome: as palavras precisam continuar as mesmas e na mesma ordem do `transcript.json`. Nomes recorrentes vão em `correcoes` no `marca.json` do cliente; depois disso, rode o preparo de novo.
 - Escolha os destaques pelo sentido da frase: a palavra que a pessoa enfatiza, o número, o conceito.
 - Ponha as marcações em palavras seguidas de pausa, nunca na frase de abertura colada na seguinte.
+- Toda tela de impacto leva uma palavra grande: `>> frase curta / **PALAVRA**`. Sem ela, a tela sai com letra pequena e sem as letras entrando uma a uma.
 - Se ouvir no texto a voz de quem está gravando ("de novo", "boa", instruções), comece essa linha com `~`.
 
 ## Mapa, prévia e render
@@ -121,9 +164,15 @@ Siga as instruções do topo do `roteiro-legendas.txt` e as metas que o comando 
 { "titulo": "<título>", "cliente": "<cliente>", "video": "2-legendas/assets/video.mp4", "notas": [] }
 ```
 
-Em `notas`, ponha as decisões que não estão na comp, como a música: `{ "t": 0, "tipo": "musica", "o_que": "<música>", "por_que": "<motivo>" }`. Chame `montar_mapa` e rode o comando na pasta `2-legendas`. Se um motivo sair genérico, troque em `ajustes`, como o comando mostra, e rode de novo.
+Em `notas`, ponha as decisões que não estão na comp, como a música escolhida: `{ "t": 0, "tipo": "musica", "o_que": "<música>", "por_que": "<motivo>" }`. Sem música, não escreva nota de música. Chame `montar_mapa` e rode o comando na pasta `2-legendas`. Se um motivo sair genérico, troque em `ajustes`, como o comando mostra, e rode de novo.
 
-Diga à pessoa para abrir o `mapa.html`, na pasta do vídeo, com dois cliques. Explique em 3 ou 4 linhas o que vai acontecer no vídeo e espere ela aprovar ou pedir ajustes, como "no 0:23 tira o zoom". A cada ajuste, atualize o roteiro, gere de novo e monte o mapa de novo.
+Abra o mapa para a pessoa:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/abrir.sh" "<pasta-do-video>/mapa.html"
+```
+
+Explique em 3 ou 4 linhas o que vai acontecer no vídeo e espere ela aprovar ou pedir ajustes, como "no 0:23 tira o zoom". A cada ajuste, atualize o roteiro, gere de novo e monte o mapa de novo. Depois de gerar de novo por causa de um ajuste na prévia, a página recarrega sozinha.
 
 **Prévia.**
 
@@ -131,7 +180,7 @@ Diga à pessoa para abrir o `mapa.html`, na pasta do vídeo, com dois cliques. E
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/previa.sh" "<pasta-do-video>/2-legendas"
 ```
 
-Abra `http://localhost:30710` no painel do navegador. Diga que basta apertar o play, ignorando os outros botões da tela. Espere a pessoa aprovar.
+Abra no painel do navegador o endereço que o script mostrar na última linha: ele muda quando já há outra prévia aberta. Diga que basta apertar o play, ignorando os outros botões da tela. Espere a pessoa aprovar.
 
 **Render.** Só com a aprovação:
 
@@ -139,7 +188,13 @@ Abra `http://localhost:30710` no painel do navegador. Diga que basta apertar o p
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/renderizar.sh" "<pasta-do-video>" "<pasta-do-cliente>/<Mês>/Prontos/<nome>.mp4"
 ```
 
-Confira as linhas de duração, volume e último quadro no fim da saída. Atualize o `project.md` e diga em uma linha onde está o arquivo. O bruto nunca é alterado.
+Confira as linhas de duração, volume e último quadro no fim da saída. Depois abra o vídeo para a pessoa:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/abrir.sh" "<pasta-do-cliente>/<Mês>/Prontos/<nome>.mp4"
+```
+
+Atualize o `project.md` e diga em uma linha o caminho completo do arquivo. O bruto nunca é alterado.
 
 ## Prévia e render do só legenda
 
@@ -149,7 +204,7 @@ Confira as linhas de duração, volume e último quadro no fim da saída. Atuali
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/previa.sh" "<pasta-do-video>/2-legendas"
 ```
 
-Abra `http://localhost:30710` no painel do navegador. Diga em 2 ou 3 linhas o que entrou no vídeo e que basta apertar o play, ignorando os outros botões da tela. Espere a pessoa aprovar ou pedir ajustes. A cada ajuste, volte a "Gerar".
+Abra no painel do navegador o endereço que o script mostrar na última linha: ele muda quando já há outra prévia aberta. Diga em 2 ou 3 linhas o que entrou no vídeo e que basta apertar o play, ignorando os outros botões da tela. Espere a pessoa aprovar ou pedir ajustes. A cada ajuste, volte a "Gerar".
 
 **Render.** Só com a aprovação. Chame `gerar_legendas` com `modo: "so-legenda"`, rode o comando e depois:
 
@@ -157,4 +212,10 @@ Abra `http://localhost:30710` no painel do navegador. Diga em 2 ou 3 linhas o qu
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/legendar.sh" "<pasta-do-video>"
 ```
 
-Confira as linhas de duração e do último quadro no fim da saída. Atualize o `project.md` e diga em uma linha onde está o arquivo. O vídeo original nunca é alterado.
+Confira as linhas de duração e do último quadro no fim da saída. Depois abra o vídeo para a pessoa, com o caminho da linha "Pronto":
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/abrir.sh" "<arquivo-pronto>"
+```
+
+Atualize o `project.md` e diga em uma linha o caminho completo do arquivo. O vídeo original nunca é alterado.

@@ -8,6 +8,8 @@
       "mcp__plugin_creator-hub_fabrica__analisar_falas",
       "mcp__plugin_creator-hub_fabrica__decidir_cortes",
       "mcp__plugin_creator-hub_fabrica__montar_mapa",
+      "mcp__plugin_creator-hub_fabrica__baixar_efeitos",
+      "mcp__plugin_creator-hub_fabrica__plano_continuo",
       "Bash(curl -sS:*)",
       "Bash(mkdir:*)",
       "Bash(bash *creator-hub*ferramentas*)"

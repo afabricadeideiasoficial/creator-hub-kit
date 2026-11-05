@@ -57,13 +57,26 @@ elif [ ! -f "$L/assets/fundo-impacto.mp4" ]; then
   ffmpeg -hide_banner -loglevel error -y -f lavfi -i "gradients=size=1080x1920:rate=30:c0=${COR_A}:c1=${COR_B}:c2=#0b0b0d:nb_colors=3:duration=15:speed=0.01" -c:v libx264 -pix_fmt yuv420p -crf 20 "$L/assets/fundo-impacto.mp4"
 fi
 
-EXTRA='{"soLegenda":false}'
+# O clique de câmera das legendas vem dos efeitos sonoros. Sem eles, o vídeo sai sem clique.
+CLIQUE=null
+if [ -f "$KIT_CASA/efeitos/clique.wav" ]; then
+  mkdir -p "$L/assets/sfx"
+  cp "$KIT_CASA/efeitos/clique.wav" "$L/assets/sfx/clique.wav"
+  CLIQUE='{"arquivo":"assets/sfx/clique.wav","dur":1.02,"pico":0.042,"vol":0.6}'
+fi
+
+EXTRA="{\"soLegenda\":false,\"clique\":$CLIQUE}"
 if [ -n "$MUSICA" ]; then
   bash "$FERRAMENTAS/musica.sh" "$MUSICA" "$L/assets/musica.m4a" "$(node -p "Number(process.argv[1]) + 0.45" "$DUR")"
-  EXTRA='{"soLegenda":false,"musica":{"arquivo":"assets/musica.m4a","nome":"Música"}}'
+  EXTRA="{\"soLegenda\":false,\"clique\":$CLIQUE,\"musica\":{\"arquivo\":\"assets/musica.m4a\",\"nome\":\"Música\"}}"
 fi
 
 CUTS=$(node "$FERRAMENTAS/cortes_do_video.cjs" "$C/edl.json" "$FPS")
 node "$FERRAMENTAS/montar_video_json.cjs" "$C/transcripts/edited_voz.json" "$L" "$(basename "$V")" "$(basename "$V")" "$DUR" "$ESTILO" "$FERRAMENTAS/marca-padrao.json" "$CLIENTE/marca.json" "$EXTRA" "$CUTS"
 
 echo "Pasta de legendas pronta em $L (duração ${DUR}s, estilo $ESTILO)."
+
+# Compara as falas escolhidas com o que a transcrição ouviu no corte. Só avisa: não para o preparo.
+if [ -f "$C/takes.json" ]; then
+  node "$FERRAMENTAS/conferir_palavras.cjs" "$C/takes.json" "$C/transcripts/edited_voz.json" "$CUTS" "$C/transcript.json"
+fi

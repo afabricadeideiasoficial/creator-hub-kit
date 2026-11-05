@@ -21,12 +21,14 @@ C="$(caminho "$1")/1-corte"
 SRC="$(tr -d '\r' < "$C/fonte.txt")"
 [ -f "$SRC" ] || { echo "Não encontrei o vídeo original em: $SRC"; exit 1; }
 
+# A cor do preparar_cor.sh entra só aqui: o caminho dela fica fora do edl.json, que volta ao servidor no mapa.
 node -e '
   const fs = require("fs");
-  const [entrada, saida, bruto] = process.argv.slice(1);
+  const [entrada, saida, bruto, cor] = process.argv.slice(1);
   const edl = JSON.parse(fs.readFileSync(entrada, "utf8"));
   edl.sources.raw = bruto;
-  fs.writeFileSync(saida, JSON.stringify(edl, null, 2));' "$C/edl.json" "$C/edl-render.json" "$SRC"
+  if (fs.existsSync(cor)) edl.grade = fs.readFileSync(cor, "utf8").trim();
+  fs.writeFileSync(saida, JSON.stringify(edl, null, 2));' "$C/edl.json" "$C/edl-render.json" "$SRC" "$C/cor.txt"
 
 cd "$C"
 rm -rf clips_graded

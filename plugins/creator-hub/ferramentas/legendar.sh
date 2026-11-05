@@ -8,6 +8,8 @@
 set -e
 # Em português, o awk e o sort usariam vírgula nos decimais e leriam errado os números do ffmpeg.
 unset LC_ALL; export LC_NUMERIC=C
+# Sem dados de uso e sem checagem de versão no programa de vídeo: a versão do kit é fixa.
+export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 [ $# -ge 1 ] || { echo "Uso: bash legendar.sh <pasta-do-video> [pasta-de-saida]"; exit 1; }
 
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
@@ -31,6 +33,8 @@ OUT="$OUTDIR/$(basename "$SRC")"
 FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$SRC" | tr -d '\r')
 RES=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$SRC" | tr -d '\r')
 if [ "$RES" -ge 3840 ]; then PRESET=portrait-4k; else PRESET=portrait; fi
+
+bash "$(dirname "$0")/conferir_comp.sh" "$L"
 
 cd "$L"
 MARGENS="$(node medir_margens.cjs)"

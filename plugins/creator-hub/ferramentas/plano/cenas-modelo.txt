@@ -1,0 +1,21 @@
+# Roteiro de cenas do vídeo animado. Uma linha por cena; linhas com # são comentário.
+#
+#   [palavras da narração onde a cena começa] tipo: texto | chave: valor | entra: transição
+#
+# tipos:  titulo · frase · numero · cartao · lista · celular · rede · grafico · fecho
+# entra:  deslize (padrão), deslize-baixo/-direita/-esquerda/-cima, giro, mergulho (entra no portal
+#         da cena anterior), recuo (a cena anterior encolhe e vira o portal desta), corte (evite)
+# chaves: sub, selo, texto (rótulo do número/celular), icone, itens (separados por ;), prefixo, sufixo,
+#         de, usuario, curtidas, nos, ativos, valores, rotulos, titulo, cta, dur, graus, segura
+# *palavra*      destaque (1 a 3 palavras, nunca quebra linha)
+# texto @palavra o elemento entra quando a palavra é dita (procurada dentro da cena)
+# itens: "opção ruim ✗ @ruim; opção boa ✓"  (✓ certo, ✗ errado, nada = ponto)
+# ícones: check x ponto play coracao msg enviar pessoa poltrona grafico raio estrela casa dinheiro video seta lampada mapa
+#
+# Exemplo, com uma narração inventada. Apague estas linhas e escreva as cenas do seu vídeo:
+# [início] titulo: Três passos *simples* | selo: exemplo
+# [o primeiro] cartao: Primeiro passo | icone: lampada | itens: anote a ideia @ideia; escolha o tema @tema | entra: mergulho
+# [em uma semana] numero: 12 @12 | texto: tarefas em *1 semana* @tarefas | entra: deslize
+# [no celular] celular: o resultado no *celular* @resultado | usuario: @marca | entra: recuo
+# [as opções] lista: As opções | itens: opção ruim ✗ @ruim; opção boa ✓ @boa | entra: mergulho
+# [para terminar] fecho: comece *hoje* | sub: um passo por vez @passo | entra: giro

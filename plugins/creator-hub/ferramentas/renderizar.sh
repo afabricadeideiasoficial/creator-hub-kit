@@ -5,6 +5,8 @@
 set -e
 # Em português, o awk e o sort usariam vírgula nos decimais e leriam errado os números do ffmpeg.
 unset LC_ALL; export LC_NUMERIC=C
+# Sem dados de uso e sem checagem de versão no programa de vídeo: a versão do kit é fixa.
+export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 [ $# -eq 2 ] || { echo "Uso: bash renderizar.sh <pasta-do-video> <arquivo-de-saida.mp4>"; exit 1; }
 
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
@@ -19,6 +21,8 @@ OUT="$(caminho "$(dirname "$2")")/$(basename "$2")"
 grep -q 'id="a-roll"' "$L/index.html" || { echo "O index.html não tem o vídeo dentro. Gere as legendas de novo em modo com-video antes de renderizar."; exit 1; }
 
 FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$L/assets/video.mp4" | tr -d '\r')
+
+bash "$(dirname "$0")/conferir_comp.sh" "$L"
 
 cd "$L"
 MARGENS="$(node medir_margens.cjs)"
@@ -38,6 +42,7 @@ fi
 D0=$(ffprobe -v error -show_entries format=duration -of csv=p=0 assets/video.mp4 | tr -d '\r')
 D1=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT" | tr -d '\r')
 echo "Duração: corte ${D0}s, vídeo final ${D1}s."
+echo "Tamanho: $(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "$OUT" | tr -d '\r')."
 echo "Volume: ${LUFS} LUFS."
 LUZ=$(ffmpeg -hide_banner -sseof -0.2 -i "$OUT" -vf "scale=54:96,format=gray,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-" -an -f null - 2>/dev/null | grep -o "YAVG=[0-9]*" | head -1)
 echo "Último quadro: $LUZ (0 seria tela preta)."
