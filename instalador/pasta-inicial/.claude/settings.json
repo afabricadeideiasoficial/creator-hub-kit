@@ -10,6 +10,7 @@
       "mcp__plugin_creator-hub_fabrica__montar_mapa",
       "mcp__plugin_creator-hub_fabrica__baixar_efeitos",
       "mcp__plugin_creator-hub_fabrica__plano_continuo",
+      "mcp__plugin_creator-hub_fabrica__ler_receita",
       "Bash(curl -sS:*)",
       "Bash(mkdir:*)",
       "Bash(bash *creator-hub*ferramentas*)"

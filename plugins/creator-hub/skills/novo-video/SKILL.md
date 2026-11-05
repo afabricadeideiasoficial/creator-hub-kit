@@ -32,6 +32,8 @@ Chame `listar_estilos`. Depois faça uma única chamada de `AskUserQuestion`, pu
 | Música (na edição completa) | Sem música · Vou escolher um arquivo. A música é da pessoa: peça o caminho do arquivo |
 | Cor (na edição completa) | Vídeo normal (celular ou câmera sem LOG), recomendado · Gravei em LOG: Sony S-Log3 · Panasonic V-Log · iPhone Apple Log |
 
+Estilo marcado "com receita" só serve para edição completa: logo depois da ficha, chame `ler_receita` com o id dele. Se a resposta disser que o estilo ainda não liberou, mostre a data e ofereça outro estilo. Guarde a receita: ela vale até o fim do vídeo.
+
 Só use estilos que a ferramenta listou como prontos. Se a pessoa pedir um estilo que está "a caminho", diga que ainda não chegou ao kit dela. Aqui entram só os estilos com a pessoa na tela: para um estilo marcado como vídeo animado, use a skill `plano-continuo`.
 
 Crie a pasta do vídeo em `~/Edicoes/<Cliente>/<Mês>/<nome-sem-acento>/`. Escreva `project.md` nela, começando por "Estado atual", e atualize a cada etapa.
@@ -55,11 +57,11 @@ Rode os comandos que as ferramentas devolvem exatamente como vieram, na pasta in
 | como a legenda fica num instante | `bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/plano/fotos.sh" "<pasta-do-video>/2-legendas" "1.2,3.4"` e olhe as fotos de `2-legendas/snapshots` |
 | se a tela da prévia alterou a edição | `bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/conferir_comp.sh" "<pasta-do-video>/2-legendas"` |
 
-Para ler um arquivo ou a saída de um comando em segundo plano, use a sua ferramenta de leitura de arquivos. Nunca clique na tela da prévia para conferir: um clique na linha do tempo muda a edição. Se faltar uma informação que esses scripts não dão, diga isso à pessoa em vez de improvisar.
+Rode cada script sozinho, sem variável antes e sem `|`, `;` ou `&&`: comando encadeado também abre janela. Para ver o que há numa pasta, use a sua ferramenta de busca de arquivos. Para ler um arquivo ou a saída de um comando em segundo plano, use a sua ferramenta de leitura de arquivos. Nunca clique na tela da prévia para conferir: um clique na linha do tempo muda a edição. Se faltar uma informação que esses scripts não dão, diga isso à pessoa em vez de improvisar.
 
 ## 3. Edição completa
 
-Vá até o fim destes passos e depois siga para "Mapa, prévia e render".
+Vá até o fim destes passos e depois siga para "Mapa, prévia e render". Num estilo com receita, vá só até "Conferir o corte e preparar as legendas" e siga para "Estilo com receita".
 
 **Preparar o bruto.** A primeira transcrição do computador baixa o modelo e pode demorar. Avise antes.
 
@@ -145,6 +147,36 @@ Confira a margem e corrija o que sair dela:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/medir_margens.sh" "<pasta-do-video>/2-legendas"
 ```
+
+## Estilo com receita
+
+Neste caminho não há roteiro, gerador nem mapa: quem escreve o vídeo é você, seguindo a receita.
+
+**Preparar.**
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/receita/preparar_receita.sh" "<pasta-do-video>"
+```
+
+**Planejar.** Faça o plano que a receita pede e mostre à pessoa, em 3 ou 4 linhas, o que vai acontecer no vídeo. Espere ela aprovar antes de escrever.
+
+**Escrever.** Escreva `2-legendas/index.html` seguindo a receita. Depois disso, só edições pequenas. Se uma cena usa um quadro do vídeo, tire o quadro assim:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/receita/quadro.sh" "<pasta-do-video>/2-legendas" "<segundos>"
+```
+
+**Conferir.** Confira a margem e olhe as fotos, como a receita manda:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/medir_margens.sh" "<pasta-do-video>/2-legendas"
+```
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/plano/fotos.sh" "<pasta-do-video>/2-legendas" "<tempos separados por vírgula>"
+```
+
+Depois siga para "Prévia" e "Render" em "Mapa, prévia e render", sem o mapa.
 
 ## Revisar o roteiro
 
