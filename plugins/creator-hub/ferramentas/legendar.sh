@@ -6,6 +6,8 @@
 # O original nunca é sobrescrito.
 # No Windows (Git Bash), os programas terminam a linha com \r: por isso o tr -d '\r' em cada resposta.
 set -e
+# Em português, o awk e o sort usariam vírgula nos decimais e leriam errado os números do ffmpeg.
+unset LC_ALL; export LC_NUMERIC=C
 [ $# -ge 1 ] || { echo "Uso: bash legendar.sh <pasta-do-video> [pasta-de-saida]"; exit 1; }
 
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }

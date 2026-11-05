@@ -5,6 +5,9 @@
       "mcp__plugin_creator-hub_fabrica__listar_estilos",
       "mcp__plugin_creator-hub_fabrica__rascunhar_roteiro",
       "mcp__plugin_creator-hub_fabrica__gerar_legendas",
+      "mcp__plugin_creator-hub_fabrica__analisar_falas",
+      "mcp__plugin_creator-hub_fabrica__decidir_cortes",
+      "mcp__plugin_creator-hub_fabrica__montar_mapa",
       "Bash(curl -sS:*)",
       "Bash(mkdir:*)",
       "Bash(bash *creator-hub*ferramentas*)"

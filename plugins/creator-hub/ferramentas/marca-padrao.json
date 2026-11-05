@@ -1,9 +1,20 @@
 {
   "soLegenda": true,
-  "fonteDestaque": { "familia": "Anton", "arquivo": "assets/fonts/Anton-Regular.ttf", "formato": "truetype", "peso": 400 },
+  "fonteDestaque": {
+    "familia": "Anton",
+    "arquivo": "assets/fonts/Anton-Regular.ttf",
+    "formato": "truetype",
+    "peso": 400
+  },
   "fonteTitulo": "\"Montserrat\", Arial, sans-serif",
   "fonteTexto": "\"Montserrat\", Arial, sans-serif",
-  "fontesExtras": [{ "familia": "Montserrat", "arquivo": "assets/fonts/Montserrat-SemiBold.ttf", "formato": "truetype" }],
+  "fontesExtras": [
+    {
+      "familia": "Montserrat",
+      "arquivo": "assets/fonts/Montserrat-SemiBold.ttf",
+      "formato": "truetype"
+    }
+  ],
   "corTexto": "#ffffff",
   "gradienteDestaque": null,
   "brilhoDestaque": null,
@@ -11,5 +22,11 @@
   "corLinhaDivisoria": "#ffffff",
   "musica": null,
   "clique": null,
-  "correcoes": []
+  "correcoes": [],
+  "sombraImpacto": "11,12,16",
+  "vitrine": {
+    "centro": "#3a3a40",
+    "meio": "#222226",
+    "borda": "#0b0b0d"
+  }
 }

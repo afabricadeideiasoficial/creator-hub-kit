@@ -1,6 +1,6 @@
 {
   "name": "creator-hub",
-  "version": "0.1.1",
-  "description": "O kit de edição de vídeo do Creator Hub: legenda na sua marca, feita no seu computador. Exige assinatura ativa.",
+  "version": "0.2.0",
+  "description": "O kit de edição de vídeo do Creator Hub: corte e legenda na sua marca, feitos no seu computador. Exige assinatura ativa.",
   "author": { "name": "Creator Flow" }
 }

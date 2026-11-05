@@ -2,6 +2,8 @@
 # Confere se todas as telas ficam dentro da margem segura do Instagram.
 # Uso: bash medir_margens.sh <pasta-2-legendas>
 set -e
+# Em português, o awk e o sort usariam vírgula nos decimais e leriam errado os números do ffmpeg.
+unset LC_ALL; export LC_NUMERIC=C
 [ $# -eq 1 ] || { echo "Uso: bash medir_margens.sh <pasta-2-legendas>"; exit 1; }
 export PATH="$HOME/.creator-hub/bin:$PATH"
 cd "$1"

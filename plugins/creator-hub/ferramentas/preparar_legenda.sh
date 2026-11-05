@@ -7,6 +7,8 @@
 # O caminho do vídeo fica só em fonte.txt: ele nunca vai ao servidor.
 # No Windows (Git Bash), os programas terminam a linha com \r: por isso o tr -d '\r' em cada resposta.
 set -e
+# Em português, o awk e o sort usariam vírgula nos decimais e leriam errado os números do ffmpeg.
+unset LC_ALL; export LC_NUMERIC=C
 [ $# -eq 4 ] || { echo "Uso: bash preparar_legenda.sh <video> <pasta-do-video> <pasta-do-cliente> <id-do-estilo>"; exit 1; }
 
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }

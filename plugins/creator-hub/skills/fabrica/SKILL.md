@@ -11,7 +11,8 @@ Fale em português simples.
 
 | Pedido | O que acontece |
 |---|---|
-| `/novo-video` ou "legenda esse vídeo" | ficha, legendas na marca, prévia e render com a sua aprovação |
+| `/novo-video` ou "edita esse vídeo" | ficha, corte, legendas na marca, mapa de edição, prévia e render com a sua aprovação |
+| "legenda esse vídeo" | o mesmo caminho, sem o corte, para vídeo já editado |
 | `/cliente-novo` ou "muda as cores da minha marca" | cria ou ajusta a marca |
 | "quais estilos eu tenho?" | a lista dos estilos prontos e dos que estão a caminho |
 
