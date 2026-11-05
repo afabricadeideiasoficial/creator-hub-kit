@@ -12,9 +12,19 @@ Fale em português simples. "Cliente" pode ser a própria pessoa: quem edita os 
 Use `AskUserQuestion`, sem exigir nada técnico:
 
 - **Nome:** como a marca se chama. Vira a pasta `~/Edicoes/<Nome>/`, sem acento.
-- **Cores:** a cor da marca. Se a pessoa não souber o código, peça um print do perfil ou do logo e tire a cor da imagem.
+- **Cores:** a cor da marca. Se a pessoa não souber o código, peça o arquivo do logo ou um print do perfil, e veja a seção "Tirar a cor de uma imagem".
 - **Fontes:** usar as fontes do kit (recomendado) ou as da marca. Se forem as da marca, peça os arquivos `.ttf` ou `.otf` e confirme que a pessoa pode usá-los.
 - **Nomes difíceis:** nomes que o Whisper costuma errar, como o da marca e de produtos.
+
+## Tirar a cor de uma imagem
+
+Com a imagem no computador, rode este script, que serve no Mac e no Windows. Não escreva comando próprio para isso:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/cor_da_imagem.sh" "<imagem>"
+```
+
+Mostre à pessoa as cores que ele listar, em códigos e pelo nome (rosa, azul...), e confirme qual é a da marca. A última linha já traz os valores para o `marca.json`. Se a imagem veio só colada na conversa, sem arquivo, peça o arquivo ou diga a cor que você vê e confirme com a pessoa.
 
 ## 2. Gravar
 

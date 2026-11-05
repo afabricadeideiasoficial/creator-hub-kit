@@ -30,7 +30,7 @@ def canal_com_voz(arq):
     if arq not in CANAL:
         nivel = []
         for c in (0, 1):
-            err = subprocess.run(["ffmpeg", "-nostats", "-t", "600", "-i", arq, "-af", f"pan=mono|c0=c{c},astats=metadata=0",
+            err = subprocess.run(["ffmpeg", "-nostats", "-t", "600", "-i", arq, "-vn", "-af", f"pan=mono|c0=c{c},astats=metadata=0",
                                   "-f", "null", "-"], capture_output=True, text=True).stderr
             v = [float(x) for x in __import__("re").findall(r"RMS level dB: (-?[\d.]+|-inf)", err.replace("-inf", "-200"))]
             nivel.append(v[0] if v else -200.0)

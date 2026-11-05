@@ -22,6 +22,8 @@ PY="$KIT_CASA/video-use/.venv/bin/python"
 [ -x "$PY" ] || [ -x "$PY.exe" ] || { echo "O kit não está instalado neste computador. Rode o instalador do Creator Hub."; exit 1; }
 
 SRC="$(caminho "$(dirname "$1")")/$(basename "$1")"
+# Se o vídeo é um atalho, vale o arquivo de verdade: é o nome dele que a transcrição usa.
+if [ -L "$SRC" ]; then SRC="$(readlink -f "$SRC" 2>/dev/null || printf '%s' "$SRC")"; fi
 mkdir -p "$2/1-corte"
 V="$(caminho "$2")"
 CLIENTE="$(caminho "$3")"

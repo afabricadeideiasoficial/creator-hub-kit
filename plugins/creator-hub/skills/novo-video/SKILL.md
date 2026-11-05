@@ -9,6 +9,8 @@ Quem usa isto nem sempre é técnico. Fale em português simples e mostre as esc
 
 Se a pasta do vídeo já tem `project.md`, leia o "Estado atual" e continue de onde parou. Não refaça a ficha.
 
+Se a pessoa quer vários vídeos de uma gravação longa, como um bate-papo, um podcast ou uma aula, use a skill `cortes`. Se o bruto tem mais de 10 minutos e a pessoa não disse o que quer, pergunte se é um vídeo só ou vários cortes.
+
 Para mostrar um arquivo à pessoa, rode `abrir.sh`, que abre o arquivo sozinho, e cite o caminho completo que ele mostrar. Nunca escreva link para o arquivo, como `[mapa](../mapa.html)`: o app procura o link a partir da pasta da sessão, e ele quebra.
 
 Se uma ferramenta do kit disser que o Creator Hub não está ativo, mostre a mensagem com o link e pare. Se o Claude pedir login no conector, diga para a pessoa digitar `/mcp` e escolher `fabrica`.
@@ -46,7 +48,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/instalar_efeitos.sh"
 
 Se ele disser que faltam, chame `baixar_efeitos`, rode o comando que ela devolver e rode este script de novo.
 
-Rode os comandos que as ferramentas devolvem exatamente como vieram, na pasta indicada, sem acrescentar nada a eles. Edite os arquivos com a sua ferramenta de edição, nunca com um script: script pede permissão à pessoa a cada vez. Nunca escreva à mão um arquivo que uma ferramenta gera.
+Rode os comandos que as ferramentas devolvem exatamente como vieram, na pasta indicada, sem acrescentar nada a eles. Cada comando de ferramenta vale 10 minutos e uma vez só. Se o `curl` responder que o pedido não existe ou venceu, ou der erro 404, chame a mesma ferramenta de novo e rode o comando novo: acontece quando a edição fica parada. Edite os arquivos com a sua ferramenta de edição, nunca com um script: script pede permissão à pessoa a cada vez. Nunca escreva à mão um arquivo que uma ferramenta gera.
 
 **Para conferir, use só os scripts do kit.** Não rode comandos próprios, como `ls`, `cat`, `grep`, `tail`, `ffmpeg`, `ffprobe` ou `node`: cada um abre uma janela de permissão para a pessoa, e os scripts do kit não abrem.
 
@@ -204,7 +206,7 @@ Abra o mapa para a pessoa:
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/abrir.sh" "<pasta-do-video>/mapa.html"
 ```
 
-Explique em 3 ou 4 linhas o que vai acontecer no vídeo e espere ela aprovar ou pedir ajustes, como "no 0:23 tira o zoom". A cada ajuste, atualize o roteiro, gere de novo e monte o mapa de novo. Depois de gerar de novo por causa de um ajuste na prévia, a página recarrega sozinha.
+Diga que o vídeo do mapa mostra só o corte, ainda sem legendas e efeitos, e que eles aparecem na prévia. Explique em 3 ou 4 linhas o que vai acontecer no vídeo e peça a aprovação para abrir a prévia, ou os ajustes que ela quiser, como "no 0:23 tira o zoom". A cada ajuste, atualize o roteiro, gere de novo e monte o mapa de novo. Depois de gerar de novo por causa de um ajuste na prévia, a página recarrega sozinha.
 
 **Prévia.**
 

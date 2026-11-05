@@ -11,7 +11,7 @@ Se a pasta do vídeo já tem `project.md`, leia o "Estado atual" e continue de o
 
 Se uma ferramenta do kit disser que o Creator Hub não está ativo, mostre a mensagem com o link e pare. Se o Claude pedir login no conector, diga para a pessoa digitar `/mcp` e escolher `fabrica`.
 
-A voz é sempre a narração que a pessoa manda: áudio do celular, gravador ou vídeo. Se ela não tiver narração, peça para gravar. Rode os comandos que as ferramentas devolvem exatamente como vieram, na pasta indicada, sem acrescentar nada a eles. Para conferir, use só os scripts do kit, e não comandos próprios como `ls`, `ffmpeg` ou `node`: cada um abre uma janela de permissão para a pessoa. Se faltar uma informação, diga isso à pessoa em vez de improvisar.
+A voz é sempre a narração que a pessoa manda: áudio do celular, gravador ou vídeo. Se ela não tiver narração, peça para gravar. Rode os comandos que as ferramentas devolvem exatamente como vieram, na pasta indicada, sem acrescentar nada a eles. Cada comando de ferramenta vale 10 minutos e uma vez só. Se o `curl` responder que o pedido não existe ou venceu, ou der erro 404, chame a mesma ferramenta de novo e rode o comando novo: acontece quando a edição fica parada. Para conferir, use só os scripts do kit, e não comandos próprios como `ls`, `ffmpeg` ou `node`: cada um abre uma janela de permissão para a pessoa. Se faltar uma informação, diga isso à pessoa em vez de improvisar.
 
 ## 1. A ficha
 

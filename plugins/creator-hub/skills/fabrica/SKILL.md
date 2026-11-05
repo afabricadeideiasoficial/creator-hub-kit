@@ -13,6 +13,7 @@ Fale em português simples.
 |---|---|
 | `/novo-video` ou "edita esse vídeo" | ficha, corte, legendas na marca, mapa de edição, prévia e render com a sua aprovação |
 | "legenda esse vídeo" | o mesmo caminho, sem o corte, para vídeo já editado |
+| `/cortes` ou "extrai os cortes dessa gravação" | transforma uma gravação longa em vários vídeos curtos: acha os melhores momentos, você aprova e ele edita |
 | `/plano-continuo` ou "faz um vídeo animado" | vídeo animado sobre uma narração sua, sem filmagem |
 | `/cliente-novo` ou "muda as cores da minha marca" | cria ou ajusta a marca |
 | "quais estilos eu tenho?" | a lista dos estilos prontos e dos que estão a caminho |
@@ -53,6 +54,6 @@ Depois, peça para a pessoa abrir uma sessão nova.
 
 ## Problemas
 
-- **O conector pede login ou diz "token expirado":** digite `/mcp` e escolha `fabrica`. Não use `/login`.
+- **O conector pede login ou diz "token expirado":** digite `/mcp` e escolha `fabrica`, aqui mesmo nesta sessão do app, sem abrir terminal. Não use `/login`.
 - **"O Creator Hub não está ativo":** a mensagem traz o link para renovar.
 - **Ainda não deu certo:** use o botão de suporte da área de membros.

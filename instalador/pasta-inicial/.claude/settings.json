@@ -11,9 +11,18 @@
       "mcp__plugin_creator-hub_fabrica__baixar_efeitos",
       "mcp__plugin_creator-hub_fabrica__plano_continuo",
       "mcp__plugin_creator-hub_fabrica__ler_receita",
-      "Bash(curl -sS:*)",
+      "mcp__plugin_creator-hub_fabrica__achar_momentos",
+      "mcp__plugin_creator-hub_fabrica__conferir_momentos",
+      "Bash(curl -sS --fail-with-body -F * \"https://kit.creatorflowia.com/EnviarArquivosLegenda?pedido=*\")",
+      "Bash(curl -sS --fail -o * \"https://kit.creatorflowia.com/BaixarLegenda?pedido=*\")",
+      "Bash(curl -sS --fail --create-dirs -o ~/.creator-hub/efeitos.tar.gz \"https://kit.creatorflowia.com/BaixarEfeitos?pedido=*\")",
       "Bash(mkdir:*)",
-      "Bash(bash *creator-hub*ferramentas*)"
+      "Bash(bash \"/Users/*/.claude/plugins/cache/creator-hub/creator-hub/*/ferramentas/*)",
+      "Bash(bash /Users/*/.claude/plugins/cache/creator-hub/creator-hub/*/ferramentas/*)",
+      "Bash(bash \"C:*.claude*plugins*cache*creator-hub*creator-hub*ferramentas*)",
+      "Bash(bash C:*.claude*plugins*cache*creator-hub*creator-hub*ferramentas*)",
+      "Bash(bash \"/c/Users/*/.claude/plugins/cache/creator-hub/creator-hub/*/ferramentas/*)",
+      "Bash(bash /c/Users/*/.claude/plugins/cache/creator-hub/creator-hub/*/ferramentas/*)"
     ]
   }
 }

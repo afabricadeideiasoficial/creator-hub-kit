@@ -22,6 +22,7 @@ if [ -n "$faltam" ]; then
 else
   echo "Ferramentas do computador: todas no lugar."
 fi
+[ -z "$faltam" ] && bash "$(dirname "$0")/cortes/como_transcreve.sh"
 if [ -f "$KIT/efeitos/clique.wav" ]; then
   echo "Efeitos sonoros: instalados."
 else

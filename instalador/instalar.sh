@@ -308,6 +308,7 @@ resumo() {
       linha "Este computador continua usando o kit da empresa."
     elif [ "$CHECAR" != 1 ]; then
       linha "Agora abra uma sessão NOVA no app do Claude, na pasta Edicoes (na sua pasta de usuário), e digite /fabrica."
+      linha "Se o kit pedir login, digite /mcp nessa sessão nova do app e escolha fabrica. Funciona ali mesmo, sem abrir terminal."
       linha "A sessão que está aberta agora não enxerga o plugin."
     fi
     exit 0
@@ -325,12 +326,23 @@ resumo() {
 # ---------------------------------------------------------------------------
 # Plugin do kit
 
+# Quem usa só o app não tem o claude no PATH. Por isso procura também na pasta do app, que guarda uma pasta por versão.
+claude_do_app() {
+  pasta="$HOME/Library/Application Support/Claude/claude-code"
+  [ -d "$pasta" ] || return 0
+  find "$pasta" -type f -name claude -perm -u+x -print0 2>/dev/null | xargs -0 ls -td 2>/dev/null | head -1
+}
+
 achar_claude() {
   CLAUDE_EXE=""
   if [ -n "${CLAUDE_CODE_EXECPATH:-}" ] && [ -x "$CLAUDE_CODE_EXECPATH" ]; then
     CLAUDE_EXE=$CLAUDE_CODE_EXECPATH
   elif command -v claude >/dev/null 2>&1; then
     CLAUDE_EXE=$(command -v claude)
+  elif [ -x "$HOME/.local/bin/claude" ]; then
+    CLAUDE_EXE="$HOME/.local/bin/claude"
+  else
+    CLAUDE_EXE=$(claude_do_app)
   fi
 }
 
@@ -406,7 +418,7 @@ instalar_plugin() {
   printf 'pronto\n'
   if [ -z "$CLAUDE_EXE" ]; then
     linha "Plugin do kit: falta ligar."
-    anotar_falha "Plugin do kit: este comando não rodou dentro do Claude. Abra o app do Claude numa sessão qualquer e peça para ele rodar este mesmo comando de instalação."
+    anotar_falha "Plugin do kit: não achei o programa do Claude neste computador. Peça ao Claude, no app, para rodar este mesmo comando de novo com o caminho do programa dele em CLAUDE_CODE_EXECPATH."
     return 1
   fi
   printf '  Plugin do kit: ligando na pasta Edicoes... '

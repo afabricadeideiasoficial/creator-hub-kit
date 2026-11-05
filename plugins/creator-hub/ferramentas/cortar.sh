@@ -24,11 +24,13 @@ SRC="$(tr -d '\r' < "$C/fonte.txt")"
 # A cor do preparar_cor.sh entra só aqui: o caminho dela fica fora do edl.json, que volta ao servidor no mapa.
 node -e '
   const fs = require("fs");
-  const [entrada, saida, bruto, cor] = process.argv.slice(1);
+  const [entrada, saida, bruto, cor, janela, modulo] = process.argv.slice(1);
   const edl = JSON.parse(fs.readFileSync(entrada, "utf8"));
   edl.sources.raw = bruto;
   if (fs.existsSync(cor)) edl.grade = fs.readFileSync(cor, "utf8").trim();
-  fs.writeFileSync(saida, JSON.stringify(edl, null, 2));' "$C/edl.json" "$C/edl-render.json" "$SRC" "$C/cor.txt"
+  // Corte de gravação longa: o edl.json está no tempo do corte, e o vídeo original, no tempo da gravação.
+  if (fs.existsSync(janela)) edl.ranges = require(modulo).noTempoDoBruto(edl.ranges, JSON.parse(fs.readFileSync(janela, "utf8")).janelas);
+  fs.writeFileSync(saida, JSON.stringify(edl, null, 2));' "$C/edl.json" "$C/edl-render.json" "$SRC" "$C/cor.txt" "$C/janela.json" "$FERRAMENTAS/cortes/no_tempo_do_bruto.cjs"
 
 cd "$C"
 rm -rf clips_graded

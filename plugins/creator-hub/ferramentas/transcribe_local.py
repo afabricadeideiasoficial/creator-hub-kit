@@ -57,20 +57,34 @@ def engine() -> str:
 _fw: dict = {}
 
 
+def _nvidia_libraries() -> bool:
+    """On Windows the CUDA libraries come from the nvidia-cublas-cu12 / nvidia-cudnn-cu12 wheels. True if they are installed."""
+    import importlib.util
+    spec = importlib.util.find_spec("nvidia")
+    roots = (spec.submodule_search_locations or []) if spec else []
+    if os.name == "nt":
+        for root in roots:
+            for b in Path(root).glob("*/bin"):
+                os.add_dll_directory(str(b))
+                os.environ["PATH"] = str(b) + os.pathsep + os.environ["PATH"]
+    return any(any(Path(root).glob("*/bin")) for root in roots)
+
+
+def where_it_runs() -> str:
+    """Where this computer transcribes: "apple", "nvidia" or "cpu"."""
+    if engine() == "mlx":
+        return "apple"
+    import ctranslate2
+    return "nvidia" if _nvidia_libraries() and ctranslate2.get_cuda_device_count() > 0 else "cpu"
+
+
 def _faster_whisper(device: str | None = None):
     """The faster-whisper model, loaded once: CUDA float16 when there is an NVIDIA GPU, CPU int8 otherwise."""
     if device is None and "model" in _fw:
         return _fw["model"]
     import ctranslate2
     from faster_whisper import WhisperModel
-    if os.name == "nt":
-        # On Windows the CUDA libraries come from the nvidia-cublas-cu12 / nvidia-cudnn-cu12 wheels.
-        import importlib.util
-        spec = importlib.util.find_spec("nvidia")
-        for root in (spec.submodule_search_locations or []) if spec else []:
-            for b in Path(root).glob("*/bin"):
-                os.add_dll_directory(str(b))
-                os.environ["PATH"] = str(b) + os.pathsep + os.environ["PATH"]
+    _nvidia_libraries()
     device = device or ("cuda" if ctranslate2.get_cuda_device_count() > 0 else "cpu")
     _fw["device"] = device
     _fw["model"] = WhisperModel(FW_MODEL, device=device, compute_type="float16" if device == "cuda" else "int8",
@@ -211,6 +225,9 @@ def transcribe_one(
 
 
 def main() -> None:
+    if sys.argv[1:] == ["--where"]:
+        print(where_it_runs())
+        return
     ap = argparse.ArgumentParser(description="Transcribe a video locally with Whisper (mlx-whisper or faster-whisper)")
     ap.add_argument("video", type=Path, help="Path to video file")
     ap.add_argument("--edit-dir", type=Path, default=None,
