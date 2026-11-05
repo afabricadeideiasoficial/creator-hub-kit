@@ -374,6 +374,20 @@
     return $true   # quem decide agora e a conferencia do Passo
   }
 
+  # Placa NVIDIA: a transcricao de uma gravacao longa fica muito mais rapida, mas as bibliotecas da placa nao vem com o faster-whisper.
+  # Sem placa, ou se o download falhar, a transcricao usa o processador: nunca conta como falha da instalacao.
+  function ConferirPlaca { return (Roda $PY @('-c', 'import nvidia.cublas, nvidia.cudnn')) }
+
+  function PlacaNvidia {
+    if (-not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) { return }
+    if (ConferirPlaca) { Linha 'Placa NVIDIA: a transcri\u00e7\u00e3o usa a placa'; return }
+    if ($CHECAR) { Linha 'Placa NVIDIA: faltam as bibliotecas, ent\u00e3o a transcri\u00e7\u00e3o usa o processador. Rode o instalador sem --checar.'; return }
+    Write-Host (A '  Placa NVIDIA: baixando as bibliotecas (cerca de 1 GB)... ') -NoNewline
+    if ((Roda $UV @('pip', 'install', '-q', '--python', $PY, '--only-binary', ':all:', 'nvidia-cublas-cu12', 'nvidia-cudnn-cu12==9.*')) -and (ConferirPlaca)) { Write-Host 'pronto'; return }
+    Write-Host (A 'n\u00e3o deu certo')
+    Aviso 'a transcri\u00e7\u00e3o vai usar o processador, mais devagar. O resto do kit funciona. Rode o instalador de novo para tentar outra vez.'
+  }
+
   # Sem isto o Python do Windows le e grava texto em outra codificacao e estraga os acentos dos arquivos.
   function ConferirUtf8 { return [Environment]::GetEnvironmentVariable('PYTHONUTF8', 'User') -eq '1' }
   function InstalarUtf8 {
@@ -465,11 +479,85 @@
   # -------------------------------------------------------------------------
   # Plugin do kit
 
-  function AcharClaude {
-    if ($env:CLAUDE_CODE_EXECPATH -and (Test-Path -LiteralPath $env:CLAUDE_CODE_EXECPATH)) { return $env:CLAUDE_CODE_EXECPATH }
-    $c = Get-Command claude -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($c) { return $c.Source }
+  # Serve como Claude? O app da Microsoft Store tambem se chama Claude.exe, mas nao entende "plugin install".
+  function ServeComoClaude($c) {
+    if (-not $c) { return $false }
+    if ($c -match '[\\/](WindowsApps|AnthropicClaude)[\\/]') { return $false }
+    if (-not (Test-Path -LiteralPath $c -PathType Leaf)) { return $false }
+    return ((PrimeiraLinha $c @('--version')) -match '^\s*\d+\.\d+')
+  }
+
+  function VersaoDoCaminho($caminho) {
+    $m = [regex]::Match($caminho, '[\\/]claude-code[\\/](\d+(\.\d+)+)[\\/]')
+    if ($m.Success) { try { return [version]$m.Groups[1].Value } catch {} }
+    return [version]'0.0'
+  }
+
+  # O app do Claude guarda o programa numa pasta por versao, e quem usa so o app nao tem o claude no PATH.
+  function PastasDoApp {
+    $pastas = @()
+    if ($env:APPDATA) { $pastas += (Join-Path $env:APPDATA 'Claude\claude-code') }
+    if ($env:LOCALAPPDATA) {
+      $pastas += (Join-Path $env:LOCALAPPDATA 'Claude\claude-code')
+      # App da Microsoft Store, visto num PC de verdade: Claude-Data\claude_<id>\claude-code\<versao>\<hash>\claude.exe
+      $dados = Join-Path $env:LOCALAPPDATA 'Claude-Data'
+      if (Test-Path -LiteralPath $dados) {
+        foreach ($p in @(Get-ChildItem -LiteralPath $dados -Directory -Filter 'claude_*' -ErrorAction SilentlyContinue)) {
+          $pastas += (Join-Path $p.FullName 'claude-code')
+        }
+      }
+      $loja = Join-Path $env:LOCALAPPDATA 'Packages'
+      if (Test-Path -LiteralPath $loja) {
+        foreach ($p in @(Get-ChildItem -LiteralPath $loja -Directory -Filter '*Claude*' -ErrorAction SilentlyContinue)) {
+          $pastas += (Join-Path $p.FullName 'LocalCache\Roaming\Claude\claude-code')
+        }
+      }
+    }
+    return $pastas
+  }
+
+  # O mais novo por versao, e depois por data. Se nao achar nas pastas, tenta um que esteja rodando.
+  function ClaudeDoApp {
+    $achados = @()
+    foreach ($pasta in @(PastasDoApp)) {
+      if (Test-Path -LiteralPath $pasta) {
+        $achados += @(Get-ChildItem -LiteralPath $pasta -Recurse -Filter 'claude.exe' -File -ErrorAction SilentlyContinue)
+      }
+    }
+    $ordem = @($achados | Sort-Object @{ Expression = { VersaoDoCaminho $_.FullName }; Descending = $true }, @{ Expression = 'LastWriteTime'; Descending = $true })
+    foreach ($a in $ordem) {
+      if (ServeComoClaude $a.FullName) { return $a.FullName }
+    }
+    foreach ($p in @(Get-Process -Name 'claude' -ErrorAction SilentlyContinue)) {
+      if ($p.Path -and ($p.Path -match '[\\/]claude-code[\\/]') -and (ServeComoClaude $p.Path)) { return $p.Path }
+    }
     return $null
+  }
+
+  function AcharClaude {
+    $indicado = $env:CLAUDE_CODE_EXECPATH
+    if ($indicado) {
+      # Vindo do Git Bash, o caminho pode chegar como /c/Users/...
+      $noWindows = $indicado -replace '^/([a-zA-Z])/', '$1:/'
+      foreach ($c in @($indicado, "$indicado.exe", $noWindows, "$noWindows.exe")) {
+        if (ServeComoClaude $c) { return $c }
+      }
+    }
+    foreach ($c in @(Get-Command claude -All -ErrorAction SilentlyContinue)) {
+      if (ServeComoClaude $c.Source) { return $c.Source }
+    }
+    $locais = @(Join-Path $HOME '.local\bin\claude.exe')
+    if ($env:APPDATA) { $locais += (Join-Path $env:APPDATA 'npm\claude.cmd') }
+    foreach ($c in $locais) {
+      if (ServeComoClaude $c) { return $c }
+    }
+    return (ClaudeDoApp)
+  }
+
+  # Para o registro, sem o nome da pessoa.
+  function SemUsuario($texto) {
+    if (-not $texto) { return 'nenhum' }
+    return ([string]$texto).Replace([string]$HOME, '~')
   }
 
   function BaixarMarketplace {
@@ -538,6 +626,8 @@
       return
     }
     $claude = AcharClaude
+    Registra "CLAUDE_CODE_EXECPATH: $(SemUsuario $env:CLAUDE_CODE_EXECPATH)"
+    Registra "Programa do Claude usado: $(SemUsuario $claude)"
     if ($CHECAR) {
       if (-not $claude) {
         Linha 'Plugin do kit: s\u00f3 d\u00e1 para conferir de dentro do app do Claude.'
@@ -559,7 +649,7 @@
     Write-Host 'pronto'
     if (-not $claude) {
       Linha 'Plugin do kit: falta ligar.'
-      AnotarFalha 'Plugin do kit: este comando n\u00e3o rodou dentro do Claude. Abra o app do Claude numa sess\u00e3o qualquer e pe\u00e7a para ele rodar este mesmo comando de instala\u00e7\u00e3o.'
+      AnotarFalha 'Plugin do kit: n\u00e3o achei o programa do Claude neste computador. Pe\u00e7a ao Claude, no app, para rodar este mesmo comando de novo com o caminho do programa dele em CLAUDE_CODE_EXECPATH.'
       return
     }
     Write-Host -NoNewline (A '  Plugin do kit: ligando na pasta Edicoes... ')
@@ -580,6 +670,7 @@
       } elseif (-not $CHECAR) {
         Linha 'Agora abra uma sess\u00e3o NOVA no app do Claude, na pasta Edicoes (na sua pasta de usu\u00e1rio), e digite /fabrica.'
         Linha 'A sess\u00e3o que est\u00e1 aberta agora n\u00e3o enxerga o plugin.'
+        Linha 'Se o kit pedir login, digite /mcp nessa sess\u00e3o nova do app e escolha fabrica. Funciona ali mesmo, sem abrir terminal.'
       }
       return
     }
@@ -655,7 +746,7 @@
     if (Passo 'video-use' 'ConferirVideoUse' 'InstalarVideoUse' 'baixando') {
       [void](Passo 'Transcri\u00e7\u00e3o local' 'ConferirTranscricao' 'InstalarTranscricao' 'copiando')
       if (ConferirUv) {
-        [void](Passo 'Ambiente de transcri\u00e7\u00e3o' 'ConferirAmbiente' 'InstalarAmbiente' 'preparando (alguns minutos)')
+        if (Passo 'Ambiente de transcri\u00e7\u00e3o' 'ConferirAmbiente' 'InstalarAmbiente' 'preparando (alguns minutos)') { PlacaNvidia }
       } else {
         AnotarFalha 'Ambiente de transcri\u00e7\u00e3o: depende do uv, que n\u00e3o ficou pronto.'
       }
