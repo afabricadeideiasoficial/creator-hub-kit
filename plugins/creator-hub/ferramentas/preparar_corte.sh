@@ -35,7 +35,7 @@ printf '%s\n' "$SRC" > "$C/fonte.txt"
 
 # Gravador que grava num canal só deixa o outro vazio: a análise usa só o canal com voz.
 FILTRO="anull"
-if [ "$(ffprobe -v error -select_streams a:0 -show_entries stream=channels -of csv=p=0 "$SRC" | tr -d '\r')" = 2 ]; then
+if [ "$(node "$FERRAMENTAS/ler_trilha.cjs" "$SRC" a:0 channels)" = 2 ]; then
   FILTRO=$(ffmpeg -nostats -hide_banner -vn -t 120 -i "$SRC" -map 0:a:0 -af astats=metadata=0 -f null - 2>&1 | tr -d '\r' | node -e '
     let t = "";
     process.stdin.on("data", (d) => (t += d)).on("end", () => {

@@ -34,9 +34,13 @@ node -e '
 
 cd "$C"
 rm -rf clips_graded
+# Sem isto, um corte refeito que falhasse no som deixaria o vídeo do corte anterior no lugar.
+rm -f edited_voz.mp4
 "$PY" "$KIT_CASA/video-use/helpers/render.py" edl-render.json -o edited.mp4 --no-subtitles > render.log 2>&1 || { tail -5 render.log; echo "O corte não deu certo. Detalhes em $C/render.log"; exit 1; }
-"$PY" "$FERRAMENTAS/audio/montar_audio.py" edl-render.json edited.mp4 -o edited_voz.mp4 --lufs -15 2>&1 | tail -2
+"$PY" "$FERRAMENTAS/audio/montar_audio.py" edl-render.json edited.mp4 -o edited_voz.mp4 --lufs -15 > som.log 2>&1 || { tail -5 som.log; echo "O som do corte não deu certo. Detalhes em $C/som.log"; exit 1; }
+tail -2 som.log
 rm -rf clips_graded base.mp4
 
 DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 edited_voz.mp4 | tr -d '\r')
+[ -n "$DUR" ] || { echo "O vídeo cortado saiu com defeito: $C/edited_voz.mp4"; exit 1; }
 echo "Corte pronto: $C/edited_voz.mp4 (${DUR}s)."

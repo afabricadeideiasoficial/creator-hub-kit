@@ -30,8 +30,8 @@ mkdir -p "$OUTDIR"
 OUT="$OUTDIR/$(basename "$SRC")"
 [ "$OUT" != "$SRC" ] || { echo "A saída seria o próprio vídeo original. Escolha outra pasta."; exit 1; }
 
-FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$SRC" | tr -d '\r')
-RES=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$SRC" | tr -d '\r')
+FPS=$(node "$(dirname "$0")/ler_trilha.cjs" "$SRC" v:0 r_frame_rate)
+RES=$(node "$(dirname "$0")/ler_trilha.cjs" "$SRC" v:0 height)
 if [ "$RES" -ge 3840 ]; then PRESET=portrait-4k; else PRESET=portrait; fi
 
 bash "$(dirname "$0")/conferir_comp.sh" "$L"

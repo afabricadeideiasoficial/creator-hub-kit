@@ -15,7 +15,7 @@ COLUNAS=6
 mkdir -p "$(dirname "$FOLHA")"
 
 DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$VIDEO" | tr -d '\r')
-TAMANHO=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "$VIDEO" | tr -d '\r')
+TAMANHO="$(node "$(dirname "$0")/ler_trilha.cjs" "$VIDEO" v:0 width)x$(node "$(dirname "$0")/ler_trilha.cjs" "$VIDEO" v:0 height)"
 PASSO="${3:-$(awk -v d="$DUR" 'BEGIN { printf "%.3f", d / 12 }')}"
 # A folga de 0,05 evita uma linha vazia na folha quando a conta dá 12,001 quadros por causa do arredondamento.
 QUANTOS=$(awk -v d="$DUR" -v p="$PASSO" 'BEGIN { i = int(d / p + 0.95); print (i < 1 ? 1 : i) }')

@@ -12,6 +12,7 @@ export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 
 export PATH="$(caminho "$HOME")/.creator-hub/bin:$PATH"
+FERRAMENTAS="$(caminho "$(dirname "$0")")"
 V="$(caminho "$1")"
 L="$V/2-legendas"
 mkdir -p "$(dirname "$2")"
@@ -20,7 +21,7 @@ OUT="$(caminho "$(dirname "$2")")/$(basename "$2")"
 [ -f "$L/index.html" ] || { echo "Falta o index.html: gere as legendas antes de renderizar."; exit 1; }
 grep -q 'id="a-roll"' "$L/index.html" || { echo "O index.html não tem o vídeo dentro. Gere as legendas de novo em modo com-video antes de renderizar."; exit 1; }
 
-FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$L/assets/video.mp4" | tr -d '\r')
+FPS=$(node "$FERRAMENTAS/ler_trilha.cjs" "$L/assets/video.mp4" v:0 r_frame_rate)
 
 bash "$(dirname "$0")/conferir_comp.sh" "$L"
 
@@ -42,7 +43,7 @@ fi
 D0=$(ffprobe -v error -show_entries format=duration -of csv=p=0 assets/video.mp4 | tr -d '\r')
 D1=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT" | tr -d '\r')
 echo "Duração: corte ${D0}s, vídeo final ${D1}s."
-echo "Tamanho: $(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0:s=x "$OUT" | tr -d '\r')."
+echo "Tamanho: $(node "$FERRAMENTAS/ler_trilha.cjs" "$OUT" v:0 width)x$(node "$FERRAMENTAS/ler_trilha.cjs" "$OUT" v:0 height)."
 echo "Volume: ${LUFS} LUFS."
 LUZ=$(ffmpeg -hide_banner -sseof -0.2 -i "$OUT" -vf "scale=54:96,format=gray,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-" -an -f null - 2>/dev/null | grep -o "YAVG=[0-9]*" | head -1)
 echo "Último quadro: $LUZ (0 seria tela preta)."

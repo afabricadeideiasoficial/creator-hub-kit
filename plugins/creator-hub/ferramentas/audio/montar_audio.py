@@ -41,9 +41,17 @@ def canal_com_voz(arq):
     return CANAL[arq]
 
 
+def trilha(arq, qual, campo):
+    """Um campo de uma trilha. Sempre em JSON: no csv, o ffprobe 9 repete a resposta quando o arquivo tem trilha de
+    horário (vídeo exportado de editor), e a marca de rotação (celular, câmera) deixa uma vírgula no fim dela."""
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", qual, "-show_entries", f"stream={campo}", "-of", "json", arq],
+                       capture_output=True, text=True, check=True).stdout
+    trilhas = json.loads(r).get("streams") or []
+    return trilhas[0].get(campo) if trilhas else None
+
+
 def ler(arq, ini, dur):
-    canais = int(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=channels",
-                                 "-of", "csv=p=0", arq], capture_output=True, text=True).stdout.strip() or 1)
+    canais = int(trilha(arq, "a:0", "channels") or 1)
     filtro = canal_com_voz(arq) if canais == 2 else "anull"
     raw = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, ini):.4f}", "-t", f"{dur:.4f}", "-i", arq, "-map", "0:a:0",
                           "-af", filtro, "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"], capture_output=True, check=True).stdout
@@ -108,8 +116,7 @@ def main():
 
     edl = json.loads(Path(a.edl).read_text())
     fonte_video = edl["sources"][edl["ranges"][0]["source"]]
-    num, den = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries", "stream=r_frame_rate",
-                               "-of", "csv=p=0", a.video], capture_output=True, text=True, check=True).stdout.strip().split("/")
+    num, den = trilha(a.video, "v:0", "r_frame_rate").split("/")
     fps = int(num) / int(den)
     fonte, atraso = fonte_video, 0.0
     if a.externo:

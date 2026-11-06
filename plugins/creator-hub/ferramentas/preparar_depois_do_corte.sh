@@ -40,7 +40,7 @@ node -e 'const fs=require("fs");const[a,b]=process.argv.slice(1);fs.rmSync(b,{fo
 
 # Início do último quadro: é a duração que evita quadro preto no fim.
 DUR=$(ffprobe -v error -select_streams v:0 -show_entries packet=pts_time -of csv=p=0 "$VIDEO" | tr -d '\r' | sort -g | tail -1)
-FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$VIDEO" | tr -d '\r')
+FPS=$(node "$FERRAMENTAS/ler_trilha.cjs" "$VIDEO" v:0 r_frame_rate)
 
 # O fundo das telas de impacto: o da marca, se houver, ou um gradiente escuro na cor dela, para o texto continuar legível.
 if [ -f "$CLIENTE/fundos/impacto.mp4" ]; then
