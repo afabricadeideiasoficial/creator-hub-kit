@@ -22,7 +22,17 @@
       "Bash(bash \"C:*.claude*plugins*cache*creator-hub*creator-hub*ferramentas*)",
       "Bash(bash C:*.claude*plugins*cache*creator-hub*creator-hub*ferramentas*)",
       "Bash(bash \"/c/Users/*/.claude/plugins/cache/creator-hub/creator-hub/*/ferramentas/*)",
-      "Bash(bash /c/Users/*/.claude/plugins/cache/creator-hub/creator-hub/*/ferramentas/*)"
+      "Bash(bash /c/Users/*/.claude/plugins/cache/creator-hub/creator-hub/*/ferramentas/*)",
+      "Bash(bash \"/Users/*/.creator-hub/marketplace/plugins/creator-hub/ferramentas/*)",
+      "Bash(bash /Users/*/.creator-hub/marketplace/plugins/creator-hub/ferramentas/*)",
+      "Bash(bash \"C:*.creator-hub*marketplace*plugins*creator-hub*ferramentas*)",
+      "Bash(bash C:*.creator-hub*marketplace*plugins*creator-hub*ferramentas*)",
+      "Bash(bash \"/c/Users/*/.creator-hub/marketplace/plugins/creator-hub/ferramentas/*)",
+      "Bash(bash /c/Users/*/.creator-hub/marketplace/plugins/creator-hub/ferramentas/*)"
+    ],
+    "deny": [
+      "Bash(bash *../*)",
+      "Bash(bash *..\\\\\\\\*)"
     ]
   }
 }
