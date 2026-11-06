@@ -1,0 +1,17 @@
+{
+  "description": "Avisa, no começo da sessão, quando saiu uma versão nova do kit.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.creator-hub/bin/node \"${CLAUDE_PLUGIN_ROOT}/ferramentas/aviso_versao.cjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

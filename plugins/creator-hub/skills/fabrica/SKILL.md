@@ -1,6 +1,6 @@
 ---
 name: fabrica
-description: Menu do kit do Creator Hub. Mostra o que dá para pedir, confere a instalação deste computador e explica como atualizar. Use quando a pessoa digitar /fabrica, pedir "menu", "o que dá pra fazer", "ajuda com o kit" ou "confere a instalação".
+description: Menu do kit do Creator Hub. Mostra o que dá para pedir, confere a instalação deste computador e explica como atualizar. Use quando a pessoa digitar /fabrica, pedir "menu", "o que dá pra fazer", "ajuda com o kit", "confere a instalação" ou "atualiza o kit".
 ---
 
 # Menu do kit
@@ -34,7 +34,7 @@ Não investigue a instalação além disso: nada de listar pastas nem de ler `~/
 
 ## Atualizar
 
-Os estilos e os motores ficam no servidor e chegam sozinhos. As instruções do kit mudam de vez em quando. Para atualizar, rode a instalação de novo, que só refaz o que mudou.
+Os estilos e os motores ficam no servidor e chegam sozinhos. As instruções do kit mudam de vez em quando, e o kit avisa no começo da sessão quando sai uma versão nova. Para atualizar, rode a instalação de novo, que só refaz o que mudou.
 
 Rode você mesmo o comando, nesta sessão. Nunca mande a pessoa abrir o Terminal: fora do Claude, o instalador não acha o `claude` e não liga o plugin. Se o app pedir permissão, explique que é a atualização do kit.
 
