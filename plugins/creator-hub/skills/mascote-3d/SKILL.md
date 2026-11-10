@@ -149,7 +149,7 @@ Diga o que foi conferido e o que não foi. Você não ouve o áudio: peça para 
 
 - Ficção "e se?", com no máximo a duração do `canal.json` (padrão: 2 minutos)
 - Vertical 1080x1920, 30 quadros por segundo
-- Protagonista: o mascote do canal, com `makeRig(cena, { mascote: true })`. Não redesenhe; um prop feito à mão com a pele do mascote (mão, pé) usa `leoPele.skin` e `leoPele.emissive`
+- Protagonista: o mascote do canal, com `makeRig(cena, { mascote: true })`. Não redesenhe; um prop feito à mão com a pele do mascote (mão, pé) usa `mascotePele.skin` e `mascotePele.emissive`
 - A voz do canal
 - Legenda palavra a palavra, com palavras-chave em amarelo
 - Final com pergunta ao espectador e opções A e B na tela até o último quadro
