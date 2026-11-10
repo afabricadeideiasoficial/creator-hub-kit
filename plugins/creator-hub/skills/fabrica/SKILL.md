@@ -15,6 +15,7 @@ Fale em português simples.
 | "legenda esse vídeo" | o mesmo caminho, sem o corte, para vídeo já editado |
 | `/cortes` ou "extrai os cortes dessa gravação" | transforma uma gravação longa em vários vídeos curtos: acha os melhores momentos, você aprova e ele edita |
 | `/plano-continuo` ou "faz um vídeo animado" | vídeo animado sobre uma narração sua, sem filmagem |
+| `/mascote-3d` ou "cria meu mascote com essa selfie" | vídeo 3D de história "e se?" com o mascote do seu canal, criado por escolhas ou pela sua selfie (vendido à parte) |
 | `/cliente-novo` ou "muda as cores da minha marca" | cria ou ajusta a marca |
 | "quais estilos eu tenho?" | a lista dos estilos prontos, dos que estão a caminho e dos seus |
 | `/referencia` ou "quero editar nesse estilo" (com um vídeo ou um link) | copia o jeito de editar de um vídeo que você gosta e cria um estilo seu, para usar no `/novo-video` |
