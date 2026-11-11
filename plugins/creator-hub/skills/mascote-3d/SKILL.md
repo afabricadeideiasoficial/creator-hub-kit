@@ -84,7 +84,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/mascote/mascote.sh" novo "<pasta-do-vide
 
 A voz é a do canal (`voz` no `canal.json`). Pergunte num cartão:
 
-- **A pessoa gera e manda o arquivo:** ela cola o `narracao.txt` na voz dela no ElevenLabs (ou grava a própria voz) e manda o arquivo. Salve como `assets/narracao.mp3`.
+- **A pessoa gera e manda o arquivo:** ela cola o `narracao.txt` na voz dela no ElevenLabs (ou grava a própria voz) e manda o arquivo. Diga a ela os ajustes da voz do canal, como em `references/voz.md`: modelo, estabilidade, similaridade e, no clone profissional, a força do clone. Salve como `assets/narracao.mp3`.
 - **Você gera pelo navegador:** só se o Claude in Chrome estiver ligado e logado na conta dela. Siga `references/voz.md`.
 
 Cada vídeo de 2 minutos gasta perto de 1.400 créditos do ElevenLabs: confirme antes de gerar de novo.

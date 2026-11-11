@@ -1,6 +1,6 @@
 # Voz no ElevenLabs
 
-Os dados da voz estão no `canal.json` do canal, em `voz`: nome da voz em My Voices, modelo, estabilidade, similaridade, créditos por vídeo e pastas onde o navegador salva o download. Se o serviço não for o ElevenLabs, siga o jeito dele e mantenha as regras de conta, de escolha e de download daqui.
+Os dados da voz estão no `canal.json` do canal, em `voz`: nome da voz em My Voices, tipo de clone (`clone`: `instantaneo` ou `profissional`), modelo, estabilidade, similaridade, força do clone, créditos por vídeo e pastas onde o navegador salva o download. Se o serviço não for o ElevenLabs, siga o jeito dele e mantenha as regras de conta, de escolha e de download daqui.
 
 Use **Claude in Chrome**, onde o ElevenLabs do usuário está logado.
 
@@ -19,14 +19,14 @@ A extensão só enxerga navegadores logados na mesma conta do Claude desta sess�
 1. Abra `elevenlabs.io/app/speech-synthesis/text-to-speech`.
 2. Se houver um rascunho do usuário na caixa de texto, não apague sem perguntar.
 3. Selecione a voz: botão "Select voice", aba **My voices**, a voz do canal, e **Use**.
-4. Modelo, Stability e Similarity do `canal.json` (padrão: **Eleven v4**, 50% e 75%).
+4. Modelo, Stability e Similarity do `canal.json` (padrão do kit: **Eleven v4**, **30%** e **90%**). Se a voz for clone profissional (`voz.clone`; na dúvida, pergunte), ponha também a **Clone Strength** em `voz.forca_do_clone` (padrão **20%**): ela só aparece no clone profissional com o Eleven v4. Idioma automático e sem efeitos.
 5. Digite o texto de `narracao.txt` e confira na página se entrou inteiro.
 6. Clique em **Generate speech**. Saem duas gerações, e a primeira toca sozinha.
 7. Peça ao usuário para ouvir. Você não avalia a qualidade da voz.
 
 ## Baixar
 
-Baixe só a geração escolhida. O Chrome salva na última pasta usada, que pode não ser Downloads. Procure nas pastas do `canal.json` (`voz.pastas_de_download`), por exemplo:
+Baixe só a geração escolhida, em MP3 44,1 kHz 128 kbps. Não trate o áudio (sem redução de ruído, equalização ou compressão): no máximo ajuste o volume na mixagem. O Chrome salva na última pasta usada, que pode não ser Downloads. Procure nas pastas do `canal.json` (`voz.pastas_de_download`), por exemplo:
 
 ```bash
 find ~/Downloads ~/Desktop -maxdepth 5 -type f -iname 'ElevenLabs*' -mmin -5
