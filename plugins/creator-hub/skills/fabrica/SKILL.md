@@ -16,9 +16,10 @@ Fale em português simples.
 | `/cortes` ou "extrai os cortes dessa gravação" | transforma uma gravação longa em vários vídeos curtos: acha os melhores momentos, você aprova e ele edita |
 | `/plano-continuo` ou "faz um vídeo animado" | vídeo animado sobre uma narração sua, sem filmagem |
 | `/cliente-novo` ou "muda as cores da minha marca" | cria ou ajusta a marca |
-| "quais estilos eu tenho?" | a lista dos estilos prontos e dos que estão a caminho |
+| "quais estilos eu tenho?" | a lista dos estilos prontos, dos que estão a caminho e dos seus |
+| `/referencia` ou "quero editar nesse estilo" (com um vídeo ou um link) | copia o jeito de editar de um vídeo que você gosta e cria um estilo seu, para usar no `/novo-video` |
 
-Para saber os estilos, chame `listar_estilos`.
+Para saber os estilos, chame `listar_estilos`. Os estilos que a pessoa criou com a `/referencia` ficam em `~/Edicoes/Estilos/`, um por pasta: procure os `estilo.md` com a busca de arquivos.
 
 ## Conferir a instalação
 
