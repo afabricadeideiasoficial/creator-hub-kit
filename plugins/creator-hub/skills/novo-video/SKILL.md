@@ -1,6 +1,6 @@
 ---
 name: novo-video
-description: Começa a edição de um vídeo com o kit do Creator Hub. Mostra a ficha do vídeo, corta o bruto, escreve as legendas na marca da pessoa, monta o mapa de edição, abre a prévia e só renderiza com aprovação. Use quando a pessoa digitar /novo-video, colar "/novo-video estilo: <estilo>" vindo da vitrine, disser que tem vídeo novo ou pedir para legendar ou editar um vídeo.
+description: Começa a edição de um vídeo com o kit do Creator Hub. Mostra a ficha do vídeo, corta o bruto, escreve as legendas na marca da pessoa, monta o mapa de edição, abre a prévia e só renderiza com aprovação. Use quando a pessoa digitar /novo-video, colar "/novo-video estilo: <estilo>" vindo da vitrine ou da skill referencia, disser que tem vídeo novo ou pedir para legendar ou editar um vídeo.
 ---
 
 # Novo vídeo
@@ -21,22 +21,25 @@ Se uma ferramenta do kit disser que o Creator Hub não está ativo, mostre a men
 - Senão, procure em `~/Edicoes/*/*/Brutos/` os vídeos que ainda não têm pasta de projeto. Se houver mais de um, pergunte qual na ficha.
 - Se não houver nenhum, explique onde colocar: `~/Edicoes/<Cliente>/<Mês>/Brutos/`, com o mês em português e maiúscula.
 - Se o cliente ainda não tem pasta em `~/Edicoes`, ou se a pasta não tem `marca.json`, use a skill `cliente-novo` antes de continuar.
+- A pasta `~/Edicoes/Estilos` guarda os estilos próprios da pessoa: não é cliente.
 
 ## 2. A ficha
 
-Chame `listar_estilos`. Depois faça uma única chamada de `AskUserQuestion`, pulando o que já estiver respondido:
+Chame `listar_estilos`. Procure também, com a busca de arquivos, os estilos próprios da pessoa, criados com a skill `referencia`: cada `~/Edicoes/Estilos/<id>/estilo.md`, com o nome, o resumo e o "quandoUsar" no cabeçalho. Depois faça uma única chamada de `AskUserQuestion`, pulando o que já estiver respondido:
 
 | Pergunta | Opções |
 |---|---|
 | Cliente | as pastas de cliente em `~/Edicoes` |
 | Tipo de edição | Edição completa (bruto: corte, legenda e mapa de edição) · Só legenda (vídeo já editado) |
-| Estilo | os estilos prontos, com o nome e o resumo que a ferramenta devolveu, o Padrão da marca primeiro como recomendado |
+| Estilo | os estilos prontos, com o nome e o resumo que a ferramenta devolveu, o Padrão da marca primeiro como recomendado. Os estilos próprios entram com "(seu)" depois do nome |
 | Música (na edição completa) | Sem música · Vou escolher um arquivo. A música é da pessoa: peça o caminho do arquivo |
 | Cor (na edição completa) | Vídeo normal (celular ou câmera sem LOG), recomendado · Gravei em LOG: Sony S-Log3 · Panasonic V-Log · iPhone Apple Log |
 
 Estilo marcado "com receita" só serve para edição completa: logo depois da ficha, chame `ler_receita` com o id dele. Se a resposta disser que o estilo ainda não liberou, mostre a data e ofereça outro estilo. Guarde a receita: ela vale até o fim do vídeo.
 
-Só use estilos que a ferramenta listou como prontos. Se a pessoa pedir um estilo que está "a caminho", diga que ainda não chegou ao kit dela. Aqui entram só os estilos com a pessoa na tela: para um estilo marcado como vídeo animado, use a skill `plano-continuo`.
+O estilo próprio também é um estilo com receita: chame `ler_receita` com `estilo: "estilo-proprio"` e leia o `estilo.md` dele inteiro. Nos scripts, o `<id-do-estilo>` dele é `estilo-proprio`, e a `<pasta-do-estilo>` é o caminho completo de `~/Edicoes/Estilos/<id>`. Se a pessoa colou "/novo-video estilo: <id>" e o id não está na lista da ferramenta, procure-o na pasta `Estilos`.
+
+Só use estilos que a ferramenta listou como prontos ou os estilos próprios da pasta `Estilos`. Se a pessoa pedir um estilo que está "a caminho", diga que ainda não chegou ao kit dela. Aqui entram só os estilos com a pessoa na tela: para um estilo marcado como vídeo animado, use a skill `plano-continuo`.
 
 Crie a pasta do vídeo em `~/Edicoes/<Cliente>/<Mês>/<nome-sem-acento>/`. Escreva `project.md` nela, começando por "Estado atual", e atualize a cada etapa.
 
@@ -63,7 +66,7 @@ Rode cada script sozinho, sem variável antes e sem `|`, `;` ou `&&`: comando en
 
 ## 3. Edição completa
 
-Vá até o fim destes passos e depois siga para "Mapa, prévia e render". Num estilo com receita, vá só até "Conferir o corte e preparar as legendas" e siga para "Estilo com receita".
+Vá até o fim destes passos e depois siga para "Mapa, prévia e render". Num estilo com receita ou próprio, vá só até "Conferir o corte e preparar as legendas" e siga para "Estilo com receita".
 
 **Preparar o bruto.** A primeira transcrição do computador baixa o modelo e pode demorar. Avise antes.
 
@@ -160,6 +163,12 @@ Neste caminho não há roteiro, gerador nem mapa: quem escreve o vídeo é você
 bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/receita/preparar_receita.sh" "<pasta-do-video>"
 ```
 
+Num estilo próprio, rode este no lugar dele. Ele faz o mesmo preparo, lista as fontes que o vídeo pode usar e traz os efeitos sonoros que o estilo pede:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/referencia/preparar_estilo.sh" "<pasta-do-video>" "<pasta-do-estilo>"
+```
+
 **Planejar.** Faça o plano que a receita pede e mostre à pessoa, em 3 ou 4 linhas, o que vai acontecer no vídeo. Espere ela aprovar antes de escrever.
 
 **Escrever.** Escreva `2-legendas/index.html` seguindo a receita. Depois disso, só edições pequenas. Se uma cena usa um quadro do vídeo, tire o quadro assim:
@@ -179,6 +188,12 @@ bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/plano/fotos.sh" "<pasta-do-video>/2-lege
 ```
 
 Depois siga para "Prévia" e "Render" em "Mapa, prévia e render", sem o mapa.
+
+Num estilo próprio, o ajuste que a pessoa pede e que vale para todo vídeo do estilo entra também no `estilo.md`, como a receita manda. Depois do primeiro vídeo pronto nesse estilo, ofereça trocar a capa do estilo por um quadro do vídeo:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/ferramentas/referencia/capa.sh" "<video-pronto>" "<segundos>" "<pasta-do-estilo>"
+```
 
 ## Revisar o roteiro
 
