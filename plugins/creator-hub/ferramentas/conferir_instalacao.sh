@@ -15,6 +15,17 @@ confere "programa de vídeo" pacotes/node_modules/hyperframes/package.json
 confere "transcrição" video-use/helpers/transcribe_local.py
 confere "Python da transcrição" video-use/.venv/bin/python
 
+# O arquivo no lugar não basta: o kit precisa conseguir chamar o programa pelo mesmo caminho que os scripts usam.
+# No Windows, um caminho na forma C:/ no PATH deixava o ffprobe na pasta e fora do alcance (WinError 2).
+export PATH="$HOME/.creator-hub/bin:$PATH"
+if [ -z "$faltam" ]; then
+  for prog in ffmpeg ffprobe node; do
+    achado=$(command -v "$prog" 2>/dev/null || command -v "$prog.exe" 2>/dev/null)
+    [ -n "$achado" ] && [ -x "$achado" ] || faltam="$faltam
+- $prog: está na pasta, mas o kit não consegue chamar ($KIT/bin). Rode a instalação de novo e abra o app do Claude outra vez."
+  done
+fi
+
 VERSAO=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$(dirname "$0")/../.claude-plugin/plugin.json" | head -1)
 echo "Kit na versão ${VERSAO:-desconhecida}."
 if [ -n "$faltam" ]; then

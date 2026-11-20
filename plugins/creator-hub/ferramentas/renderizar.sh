@@ -11,7 +11,8 @@ export HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_NO_UPDATE_CHECK=1
 
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 
-export PATH="$(caminho "$HOME")/.creator-hub/bin:$PATH"
+# PATH pelo $HOME: no Git Bash ele vem como /c/Users/...; a forma C:/ do caminho() quebraria no ":" do PATH.
+export PATH="$HOME/.creator-hub/bin:$PATH"
 FERRAMENTAS="$(caminho "$(dirname "$0")")"
 V="$(caminho "$1")"
 L="$V/2-legendas"

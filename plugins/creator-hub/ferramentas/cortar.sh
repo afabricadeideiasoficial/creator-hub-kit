@@ -12,7 +12,8 @@ unset LC_ALL; export LC_NUMERIC=C
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 
 KIT_CASA="$(caminho "$HOME")/.creator-hub"
-export PATH="$KIT_CASA/bin:$PATH"
+# PATH pelo $HOME: no Git Bash ele vem como /c/Users/...; a forma C:/ do caminho() quebraria no ":" do PATH.
+export PATH="$HOME/.creator-hub/bin:$PATH"
 FERRAMENTAS="$(caminho "$(dirname "$0")")"
 PY="$KIT_CASA/video-use/.venv/bin/python"
 C="$(caminho "$1")/1-corte"

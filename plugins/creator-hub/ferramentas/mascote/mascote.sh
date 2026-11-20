@@ -20,7 +20,8 @@ unset GEMINI_API_KEY GOOGLE_API_KEY
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 
 KIT_CASA="$(caminho "$HOME")/.creator-hub"
-export PATH="$KIT_CASA/bin:$PATH"
+# PATH pelo $HOME: no Git Bash ele vem como /c/Users/...; a forma C:/ do caminho() quebraria no ":" do PATH.
+export PATH="$HOME/.creator-hub/bin:$PATH"
 AQUI="$(caminho "$(dirname "$0")")"
 FERRAMENTAS="$(dirname "$AQUI")"
 M="$KIT_CASA/mascote-3d"

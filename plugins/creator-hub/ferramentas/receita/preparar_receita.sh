@@ -9,7 +9,8 @@ set -e
 
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 
-export PATH="$(caminho "$HOME")/.creator-hub/bin:$PATH"
+# PATH pelo $HOME: no Git Bash ele vem como /c/Users/...; a forma C:/ do caminho() quebraria no ":" do PATH.
+export PATH="$HOME/.creator-hub/bin:$PATH"
 AQUI="$(caminho "$(dirname "$0")")"
 FERRAMENTAS="$(caminho "$AQUI/..")"
 [ -f "$1/2-legendas/video.json" ] && [ -f "$1/2-legendas/transcript.json" ] || { echo "Falta preparar as legendas: rode o preparar_depois_do_corte.sh antes."; exit 1; }
