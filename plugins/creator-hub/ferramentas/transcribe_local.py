@@ -50,7 +50,13 @@ def engine() -> str:
     try:
         import mlx_whisper  # noqa: F401
         return "mlx"
-    except ImportError:
+    except ImportError as erro:
+        # Num sandbox (o do Codex, no app do ChatGPT) o mlx não acha a placa de vídeo e falha ao importar.
+        # Sem o faster-whisper, que não vem no kit para chip Apple, o erro seguinte não diria o que fazer.
+        import importlib.util
+        if "Metal" in str(erro) and importlib.util.find_spec("faster_whisper") is None:
+            sys.exit("A transcrição usa a placa de vídeo do Mac, e o sandbox do app bloqueou o acesso a ela. "
+                     "Rode este comando de novo fora do sandbox (no ChatGPT: com sandbox_permissions require_escalated).")
         return "faster-whisper"
 
 

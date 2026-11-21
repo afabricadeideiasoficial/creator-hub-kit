@@ -471,7 +471,6 @@ ligar_conector() {
     linha "Conector fabrica no ChatGPT: ok"
     return 0
   fi
-  achar_codex
   if [ -z "$CODEX_EXE" ]; then
     SEM_CODEX=1
     linha "Conector fabrica no ChatGPT: não achei o app do ChatGPT. O que fazer está no fim."
@@ -493,6 +492,32 @@ ligar_conector() {
   printf 'não deu certo\n'
   anotar_falha "Conector fabrica no ChatGPT: não consegui cadastrar. Nos ajustes do app do ChatGPT (Cmd + vírgula), em Servidores MCP, adicione o servidor fabrica com o endereço $KIT_MCP_URL."
   return 1
+}
+
+# Regras do Codex: os scripts do kit rodam fora do sandbox sem perguntar (a transcrição precisa da placa de
+# vídeo e o render, de um navegador). Uma regra por script, com o caminho inteiro. O arquivo novo só vai para
+# o lugar depois que o próprio Codex o lê e libera um script: arquivo de regras com erro não entra.
+regras_prontas() {
+  grep -q 'creator-hub: gerado' "$CODEX_REGRAS" 2>/dev/null
+}
+
+ligar_regras() {
+  novo="$TMP/creator-hub.rules"
+  printf '  Regras do kit no ChatGPT: gravando... '
+  if ! "$BIN/node" "$MKT/plugins/creator-hub/ferramentas/chatgpt/preparar.cjs" --regras "$MKT/plugins/creator-hub" >"$novo" 2>>"$LOG"; then
+    printf 'não deu certo\n'
+    anotar_falha "Regras do kit no ChatGPT: não consegui gerar. Rode o instalador de novo."
+    return 1
+  fi
+  if [ -n "$CODEX_EXE" ]; then
+    um=$(grep -o '"[^"]*/ferramentas/[^"]*\.sh"' "$novo" | head -n 1 | tr -d '"')
+    if ! "$CODEX_EXE" execpolicy check --rules "$novo" -- bash "$um" </dev/null 2>>"$LOG" | grep -q '"decision":"allow"'; then
+      printf 'não deu certo\n'
+      anotar_falha "Regras do kit no ChatGPT: o app não aceitou as regras. O kit funciona, mas o app vai pedir autorização a cada passo."
+      return 1
+    fi
+  fi
+  mkdir -p "$(dirname "$CODEX_REGRAS")" && mv -f "$novo" "$CODEX_REGRAS" && printf 'pronto\n'
 }
 
 pasta_chatgpt_pronta() {
@@ -520,6 +545,12 @@ instalar_chatgpt() {
       linha "Conector fabrica no ChatGPT: falta"
       anotar_falha "Conector fabrica no ChatGPT"
     fi
+    if regras_prontas; then
+      linha "Regras do kit no ChatGPT: ok"
+    else
+      linha "Regras do kit no ChatGPT: falta"
+      anotar_falha "Regras do kit no ChatGPT"
+    fi
     return 0
   fi
   if ! conferir_node; then
@@ -545,6 +576,8 @@ instalar_chatgpt() {
     anotar_falha "Pasta Edicoes para o ChatGPT: não consegui preparar as instruções do kit. Rode o instalador de novo."
     return 1
   fi
+  achar_codex
+  ligar_regras
   ligar_conector
 }
 
@@ -559,10 +592,25 @@ principal() {
   done
   [ "${KIT_CHECAR:-}" = 1 ] && CHECAR=1
   [ "${KIT_CHATGPT:-}" = 1 ] && MODO=chatgpt
+  # Dentro do sandbox do Codex (app do ChatGPT) a instalação não grava fora da pasta e a transcrição não acha a
+  # placa de vídeo. Melhor parar já, dizendo o que fazer, do que terminar com "instalação parcial".
+  if [ -n "${CODEX_SANDBOX:-}" ]; then
+    printf '%s\n' \
+      "A instalação do Creator Hub precisa rodar fora do sandbox do Codex: ela grava fora desta pasta e testa a transcrição na placa de vídeo do Mac, que o sandbox bloqueia." \
+      "Codex: rode o mesmo comando de novo fora do sandbox (sandbox_permissions require_escalated), com --chatgpt no fim, e peça a autorização à pessoa." \
+      "Ou, no Terminal do Mac: curl -fsSL $KIT_RAW/instalador/instalar.sh | zsh -s -- --chatgpt"
+    exit 1
+  fi
+  # Pelo Codex, fora do sandbox, mas sem o --chatgpt: é o app do ChatGPT, e o Claude não está aqui.
+  if [ "$MODO" = claude ] && [ -n "${CODEX_THREAD_ID:-}" ] && [ -z "${CLAUDE_CODE_EXECPATH:-}" ]; then
+    MODO=chatgpt
+  fi
   APP_NOME=Claude
   [ "$MODO" = chatgpt ] && APP_NOME=ChatGPT
   SEM_CODEX=0
   CODEX_CONFIG="${CODEX_HOME:-$HOME/.codex}/config.toml"
+  CODEX_REGRAS="${CODEX_HOME:-$HOME/.codex}/rules/creator-hub.rules"
+  CODEX_EXE=""
   FALHAS=""
   N_FALHAS=0
   KIT_DA_EMPRESA=0

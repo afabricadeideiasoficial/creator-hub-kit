@@ -159,3 +159,41 @@ test("chatgpt: o comando de atualizar da fabrica é o mesmo do Mac, com --chatgp
   const mac = original.match(/^curl -fsSL \S+instalar\.sh \| zsh$/m)[0];
   assert.equal(COMANDO_MAC, `${mac} -s -- --chatgpt`);
 });
+
+test("chatgpt: regras do Codex, uma por script do kit, com o caminho inteiro", () => {
+  const { regrasCodex } = require(path.join(PLUGIN, "ferramentas/chatgpt/preparar.cjs"));
+  const raiz = path.resolve(PLUGIN);
+  const texto = regrasCodex(raiz);
+  const scripts = fs.readdirSync(path.join(raiz, "ferramentas"), { withFileTypes: true, recursive: true })
+    .filter((d) => d.isFile() && d.name.endsWith(".sh"));
+  const regras = texto.split("\n").filter((l) => l.startsWith("prefix_rule("));
+  assert.equal(regras.length, scripts.length);
+  for (const l of regras) {
+    // sem lista de opções no pattern: ela invalida o arquivo inteiro no Codex
+    assert.match(l, /^prefix_rule\(pattern = \["bash", "[^"\[\]]+\/ferramentas\/[^"\[\]]+\.sh"\], decision = "allow", justification = "[^"]+"\)$/);
+    assert.ok(fs.existsSync(JSON.parse(l.match(/"bash", ("[^"]+")/)[1])));
+  }
+  assert.ok(texto.includes(MARCA));
+});
+
+test("chatgpt: skills e AGENTS.md mandam rodar os scripts do kit fora do sandbox", () => {
+  const { edicoes } = casaDeMentira();
+  preparar(PLUGIN, edicoes);
+  assert.match(fs.readFileSync(path.join(edicoes, "AGENTS.md"), "utf8"), /require_escalated/);
+  for (const nome of fs.readdirSync(path.join(PLUGIN, "skills"))) {
+    assert.match(fs.readFileSync(path.join(edicoes, ".agents/skills", nome, "SKILL.md"), "utf8"), /require_escalated/, nome);
+  }
+});
+
+test("chatgpt: o instalador para dentro do sandbox do Codex, explicando o que fazer", () => {
+  const { spawnSync } = require("node:child_process");
+  const { casa } = casaDeMentira();
+  const r = spawnSync("sh", [path.join(RAIZ, "instalador/instalar.sh"), "--chatgpt"], {
+    env: { ...process.env, HOME: casa, CODEX_SANDBOX: "seatbelt" },
+    encoding: "utf8",
+  });
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /fora do sandbox/);
+  assert.match(r.stdout, /zsh -s -- --chatgpt/);
+  assert.ok(!fs.existsSync(path.join(casa, ".creator-hub")), "não pode ter começado a instalar");
+});

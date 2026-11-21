@@ -20,7 +20,7 @@ const LOGIN =
 const AVISO = `> **Neste app (ChatGPT, pelo Codex).** Estas instruções valem para dois apps. Aqui:
 > - Quando for perguntar, faça todas as perguntas numa mensagem só, cada uma com opções numeradas e a recomendada primeiro, e espere a pessoa responder com os números.
 > - Para ler arquivos e ver pastas, use \`cat\`, \`sed -n\`, \`ls\` e \`rg\`. Para olhar uma imagem do computador, use a sua ferramenta de ver imagens.
-> - Os scripts do kit usam a internet e gravam em \`~/.creator-hub\` e \`~/.cache\`. Se o sandbox barrar um deles, peça a autorização para rodar fora dele e diga em uma linha que é a máquina de edição.
+> - Rode todo script do kit (\`bash ".../ferramentas/....sh"\`) já pedindo para rodar fora do sandbox (\`sandbox_permissions: "require_escalated"\`). A transcrição usa a placa de vídeo do Mac e a conferência e o render usam um navegador invisível, e o sandbox bloqueia os dois. A instalação deixou uma regra que libera só esses scripts, sem perguntar à pessoa. Se ainda assim o app pedir autorização, diga em uma linha que é a máquina de edição.
 > - Se o conector \`fabrica\` pedir login ou disser "token expirado", diga para a pessoa ${LOGIN}.
 > - Os pedidos começam com \`$\`, como \`$novo-video\`. Se a pessoa colar um pedido com \`/\` vindo da vitrine, como "/novo-video estilo: x", trate igual.`;
 
@@ -108,6 +108,7 @@ Responda sempre em português (Brasil), de um jeito simples: quem usa esta pasta
 - Para copiar o jeito de editar de um vídeo de referência, use a skill \`referencia\`. Os estilos criados assim ficam em \`Estilos/\`, um por pasta.
 - Nunca apague nem sobrescreva um vídeo original.
 - Não mude nada em \`.agents/skills\` nem em \`~/.creator-hub\`: a instalação refaz essas pastas.
+- Rode os scripts do kit fora do sandbox (\`sandbox_permissions: "require_escalated"\`): a transcrição usa a placa de vídeo do Mac e o render usa um navegador invisível, e o sandbox bloqueia os dois. A regra do kit libera esses scripts sem perguntar.
 - Se o kit pedir login, diga para a pessoa ${LOGIN}.
 `;
 }
@@ -123,6 +124,21 @@ approval_policy = "on-request"
 network_access = true
 writable_roots = [${raiz(".creator-hub")}, ${raiz(".cache")}]
 `;
+}
+
+// Regras do Codex (~/.codex/rules): cada script do kit roda fora do sandbox sem perguntar, como a lista de
+// permissões do Claude. Uma regra por script, com o caminho inteiro: outro script, "bash -c" ou comando
+// encadeado não casam. Lista de opções dentro do pattern invalida o arquivo inteiro, então nada disso aqui.
+function regrasCodex(raiz) {
+  const scripts = fs
+    .readdirSync(path.join(raiz, "ferramentas"), { withFileTypes: true, recursive: true })
+    .filter((d) => d.isFile() && d.name.endsWith(".sh"))
+    .map((d) => path.join(d.parentPath ?? d.path, d.name))
+    .sort();
+  const linhas = scripts.map(
+    (s) => `prefix_rule(pattern = ["bash", ${JSON.stringify(s)}], decision = "allow", justification = "ferramenta do kit do Creator Hub")`,
+  );
+  return `# ${MARCA}. Libera só os scripts do kit fora do sandbox; a instalação refaz este arquivo.\n${linhas.join("\n")}\n`;
 }
 
 const ehNosso = (arq) => fs.existsSync(arq) && fs.readFileSync(arq, "utf8").includes(MARCA);
@@ -195,12 +211,18 @@ function preparar(plugin, edicoes) {
   return { skills: feitas, avisos };
 }
 
-module.exports = { paraChatGPT, preparar, agentsMd, configToml, MARCA, COMANDO_MAC };
+module.exports = { paraChatGPT, preparar, agentsMd, configToml, regrasCodex, MARCA, COMANDO_MAC };
 
 if (require.main === module) {
-  const [plugin, edicoes] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  // --regras <plugin>: só escreve na saída as regras do Codex (o instalador confere antes de pôr no lugar)
+  if (args[0] === "--regras" && args[1]) {
+    process.stdout.write(regrasCodex(path.resolve(args[1])));
+    process.exit(0);
+  }
+  const [plugin, edicoes] = args;
   if (!plugin || !edicoes) {
-    console.error("Uso: node preparar.cjs <pasta-do-plugin> <pasta-edicoes>");
+    console.error("Uso: node preparar.cjs <pasta-do-plugin> <pasta-edicoes>  |  node preparar.cjs --regras <pasta-do-plugin>");
     process.exit(2);
   }
   try {
