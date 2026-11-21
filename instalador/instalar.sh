@@ -4,7 +4,8 @@
 #
 #   curl -fsSL <url> | zsh                 instala o que falta
 #   curl -fsSL <url> | KIT_CHECAR=1 zsh    só confere, sem instalar nada
-#   zsh instalar.sh [--checar]             o mesmo, rodando do arquivo
+#   curl -fsSL <url> | zsh -s -- --chatgpt para o app do ChatGPT (Codex), no lugar do Claude
+#   zsh instalar.sh [--checar] [--chatgpt] o mesmo, rodando do arquivo
 #
 # Só para testar:
 #   KIT_FONTE=<pasta>    copia os arquivos do kit dessa pasta em vez de baixar do GitHub
@@ -35,6 +36,7 @@ PYTHON_VERSAO=3.12
 # Pacotes de Python publicados até esta data: o assinante recebe o que foi testado, não o lançamento de hoje.
 PYTHON_PACOTES_ATE=2026-11-01T00:00:00Z
 
+KIT_MCP_URL=https://kit.creatorflowia.com/mcp
 KIT_RAW=https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main
 KIT_TARBALL=https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/tar.gz/refs/heads/main
 ARQ_TRANSCRICAO=plugins/creator-hub/ferramentas/transcribe_local.py
@@ -306,6 +308,13 @@ resumo() {
     [ "$CHECAR" = 1 ] && linha "Tudo instalado." || linha "Tudo pronto: programas, transcrição, ferramentas de vídeo e pasta Edicoes."
     if [ "$KIT_DA_EMPRESA" = 1 ]; then
       linha "Este computador continua usando o kit da empresa."
+    elif [ "$CHECAR" != 1 ] && [ "$MODO" = chatgpt ]; then
+      linha "Agora feche o app do ChatGPT (Cmd + Q) e abra de novo, para ele enxergar o kit."
+      if [ "$SEM_CODEX" = 1 ]; then
+        linha "Não achei o app do ChatGPT neste Mac. Depois de instalar o app, nos ajustes dele (Cmd + vírgula), em Servidores MCP, adicione o servidor fabrica com o endereço $KIT_MCP_URL."
+      fi
+      linha "Nos ajustes do app (Cmd + vírgula), entre em Servidores MCP e clique em Autenticar no fabrica. Entre com o e-mail da compra e o código que chega nele."
+      linha 'Depois, comece uma conversa nova no Codex, na pasta Edicoes (na sua pasta de usuário), e escreva: $fabrica confere a instalação'
     elif [ "$CHECAR" != 1 ]; then
       linha "Agora abra uma sessão NOVA no app do Claude, na pasta Edicoes (na sua pasta de usuário), e digite /fabrica."
       linha "Se o kit pedir login, digite /mcp nessa sessão nova do app e escolha fabrica. Funciona ali mesmo, sem abrir terminal."
@@ -318,7 +327,7 @@ resumo() {
   if [ "$CHECAR" = 1 ]; then
     linha "Rode o instalador sem --checar para resolver."
   else
-    linha "Basta rodar o instalador de novo: ele continua de onde parou. Se repetir, mostre esta mensagem ao Claude (detalhes em ~/.creator-hub/instalador.log)."
+    linha "Basta rodar o instalador de novo: ele continua de onde parou. Se repetir, mostre esta mensagem ao $APP_NOME (detalhes em ~/.creator-hub/instalador.log)."
   fi
   exit 1
 }
@@ -431,10 +440,129 @@ instalar_plugin() {
   return 1
 }
 
+# ---------------------------------------------------------------------------
+# Modo ChatGPT (--chatgpt): o app do ChatGPT roda o kit pelo Codex. As skills vão para ~/Edicoes/.agents/skills,
+# com o caminho real do plugin (ferramentas/chatgpt/preparar.cjs), e o conector fabrica entra na configuração
+# do Codex. O login a pessoa faz nos ajustes do app (Servidores MCP › Autenticar): o "codex mcp add" abre o
+# navegador e fica esperando o login, então aqui a linha do conector é escrita direto no arquivo, igual à dele.
+
+# O Codex vem dentro do app do ChatGPT e não fica no PATH.
+achar_codex() {
+  CODEX_EXE=""
+  if command -v codex >/dev/null 2>&1; then
+    CODEX_EXE=$(command -v codex)
+    return 0
+  fi
+  for app in /Applications/ChatGPT.app "$HOME/Applications/ChatGPT.app" /Applications/Codex.app "$HOME/Applications/Codex.app"; do
+    [ -d "$app/Contents/Resources" ] || continue
+    CODEX_EXE=$(find "$app/Contents/Resources" -maxdepth 3 -type f -name codex -perm -u+x 2>/dev/null | head -n 1)
+    [ -n "$CODEX_EXE" ] && return 0
+  done
+}
+
+# Qualquer forma de declarar o fabrica conta (tabela, chave com ponto ou tabela embutida): duas declarações
+# quebrariam a configuração inteira do app.
+conector_cadastrado() {
+  [ -f "$CODEX_CONFIG" ] && grep -Eq 'mcp_servers\.fabrica|^[[:space:]]*fabrica[[:space:]]*=' "$CODEX_CONFIG"
+}
+
+ligar_conector() {
+  if conector_cadastrado; then
+    linha "Conector fabrica no ChatGPT: ok"
+    return 0
+  fi
+  achar_codex
+  if [ -z "$CODEX_EXE" ]; then
+    SEM_CODEX=1
+    linha "Conector fabrica no ChatGPT: não achei o app do ChatGPT. O que fazer está no fim."
+    return 0
+  fi
+  printf '  Conector fabrica no ChatGPT: cadastrando... '
+  copia="$TMP/codex-config.antes"
+  rm -f "$copia"
+  [ -f "$CODEX_CONFIG" ] && cp "$CODEX_CONFIG" "$copia"
+  # Uma tabela nova no fim do arquivo é TOML válido. A linha em branco antes evita grudar numa última linha sem quebra.
+  if mkdir -p "$(dirname "$CODEX_CONFIG")" \
+    && printf '\n[mcp_servers.fabrica]\nurl = "%s"\n' "$KIT_MCP_URL" >>"$CODEX_CONFIG" \
+    && "$CODEX_EXE" mcp get fabrica </dev/null >>"$LOG" 2>&1; then
+    printf 'pronto\n'
+    return 0
+  fi
+  # o app do ChatGPT não pode ficar pior do que estava
+  if [ -f "$copia" ]; then cp "$copia" "$CODEX_CONFIG"; else rm -f "$CODEX_CONFIG"; fi
+  printf 'não deu certo\n'
+  anotar_falha "Conector fabrica no ChatGPT: não consegui cadastrar. Nos ajustes do app do ChatGPT (Cmd + vírgula), em Servidores MCP, adicione o servidor fabrica com o endereço $KIT_MCP_URL."
+  return 1
+}
+
+pasta_chatgpt_pronta() {
+  [ -f "$EDICOES/.agents/skills/novo-video/SKILL.md" ] \
+    && [ -f "$EDICOES/.agents/skills/.creator-hub.json" ] \
+    && grep -q 'creator-hub: gerado' "$EDICOES/AGENTS.md" 2>/dev/null
+}
+
+instalar_chatgpt() {
+  if [ -e "$EDICOES/.claude/skills/novo-video/SKILL.md" ]; then
+    KIT_DA_EMPRESA=1
+    linha "Kit para o ChatGPT: este computador já tem o kit da empresa na pasta Edicoes. Não instalei, para não misturar os dois."
+    return 0
+  fi
+  if [ "$CHECAR" = 1 ]; then
+    if pasta_chatgpt_pronta; then
+      linha "Pasta Edicoes para o ChatGPT: ok"
+    else
+      linha "Pasta Edicoes para o ChatGPT: falta"
+      anotar_falha "Pasta Edicoes para o ChatGPT"
+    fi
+    if conector_cadastrado; then
+      linha "Conector fabrica no ChatGPT: ok"
+    else
+      linha "Conector fabrica no ChatGPT: falta"
+      anotar_falha "Conector fabrica no ChatGPT"
+    fi
+    return 0
+  fi
+  if ! conferir_node; then
+    anotar_falha "Pasta Edicoes para o ChatGPT: depende do Node, que não ficou pronto."
+    return 1
+  fi
+  printf '  Kit para o ChatGPT: baixando... '
+  ERRO=""
+  if ! baixar_marketplace; then
+    printf 'não deu certo\n'
+    anotar_falha "Kit para o ChatGPT: $ERRO"
+    return 1
+  fi
+  printf 'pronto\n'
+  printf '  Pasta Edicoes para o ChatGPT: preparando... '
+  if "$BIN/node" "$MKT/plugins/creator-hub/ferramentas/chatgpt/preparar.cjs" "$MKT/plugins/creator-hub" "$EDICOES" >"$TMP/chatgpt.txt" 2>&1 \
+    && pasta_chatgpt_pronta; then
+    printf 'pronto\n'
+    grep '^ATENÇÃO' "$TMP/chatgpt.txt" | while IFS= read -r aviso_chatgpt; do linha "$aviso_chatgpt"; done
+  else
+    printf 'não deu certo\n'
+    cat "$TMP/chatgpt.txt" >>"$LOG"
+    anotar_falha "Pasta Edicoes para o ChatGPT: não consegui preparar as instruções do kit. Rode o instalador de novo."
+    return 1
+  fi
+  ligar_conector
+}
+
 principal() {
   CHECAR=0
-  [ "${1:-}" = "--checar" ] && CHECAR=1
+  MODO=claude
+  for arg in "$@"; do
+    case "$arg" in
+      --checar) CHECAR=1 ;;
+      --chatgpt) MODO=chatgpt ;;
+    esac
+  done
   [ "${KIT_CHECAR:-}" = 1 ] && CHECAR=1
+  [ "${KIT_CHATGPT:-}" = 1 ] && MODO=chatgpt
+  APP_NOME=Claude
+  [ "$MODO" = chatgpt ] && APP_NOME=ChatGPT
+  SEM_CODEX=0
+  CODEX_CONFIG="${CODEX_HOME:-$HOME/.codex}/config.toml"
   FALHAS=""
   N_FALHAS=0
   KIT_DA_EMPRESA=0
@@ -480,7 +608,7 @@ principal() {
   export DO_NOT_TRACK=1 HYPERFRAMES_NO_TELEMETRY=1 HYPERFRAMES_NO_UPDATE_CHECK=1
   unset VIRTUAL_ENV PYTHONHOME PYTHONPATH
 
-  titulo "Kit de edição do Creator Hub"
+  [ "$MODO" = chatgpt ] && titulo "Kit de edição do Creator Hub, para o app do ChatGPT" || titulo "Kit de edição do Creator Hub"
   livre=$(df -Pk "$HOME" | awk 'NR==2{print int($4/1048576)}')
   linha "$NOME_MAC, $livre GB livres no disco"
   # o Chrome do Puppeteer pede macOS 13
@@ -524,9 +652,13 @@ principal() {
     linha "Pasta Edicoes: não deu certo"
     anotar_falha "Pasta Edicoes: não consegui criar a pasta na sua pasta de usuário."
   fi
-  copiar_inicial "CLAUDE.md"
-  copiar_inicial ".claude/settings.json"
-  instalar_plugin
+  if [ "$MODO" = chatgpt ]; then
+    instalar_chatgpt
+  else
+    copiar_inicial "CLAUDE.md"
+    copiar_inicial ".claude/settings.json"
+    instalar_plugin
+  fi
 
   # O cache só serve para retomar uma instalação interrompida.
   [ "$CHECAR" != 1 ] && [ "$N_FALHAS" -eq 0 ] && rm -rf "$RAIZ/cache"
