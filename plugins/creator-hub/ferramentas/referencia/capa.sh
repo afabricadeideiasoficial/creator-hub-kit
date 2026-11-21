@@ -7,7 +7,8 @@ unset LC_ALL; export LC_NUMERIC=C
 
 caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 
-export PATH="$(caminho "$HOME")/.creator-hub/bin:$PATH"
+# PATH pelo $HOME: no Git Bash ele vem como /c/Users/...; a forma C:/ do caminho() quebraria no ":" do PATH.
+export PATH="$HOME/.creator-hub/bin:$PATH"
 [ -f "$1" ] || { echo "Não encontrei o vídeo: $1"; exit 1; }
 [ -d "$3" ] || { echo "Não encontrei a pasta do estilo: $3"; exit 1; }
 case "$2" in

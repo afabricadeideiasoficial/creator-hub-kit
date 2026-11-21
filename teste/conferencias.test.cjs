@@ -118,7 +118,8 @@ function casaCom(...arquivos) {
   for (const a of arquivos) {
     const p = path.join(casa, ".creator-hub", a);
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, "");
+    // Programa instalado tem permissão de rodar: a conferência chama cada um pelo PATH, como os scripts.
+    fs.writeFileSync(p, "", { mode: /^bin\/|python(\.exe)?$/.test(a) ? 0o755 : 0o644 });
   }
   return casa;
 }
