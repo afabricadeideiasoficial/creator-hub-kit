@@ -18,6 +18,7 @@ caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 export PATH="$HOME/.creator-hub/bin:$PATH"
 V="$(caminho "$1")"
 L="$V/2-legendas"
+FERRAMENTAS="$(caminho "$(dirname "$0")")"
 
 [ -f "$L/index.html" ] || { echo "Falta o index.html: gere as legendas antes de renderizar."; exit 1; }
 [ -f "$L/fonte.txt" ] || { echo "Falta o fonte.txt: prepare o vídeo de novo."; exit 1; }
@@ -42,7 +43,7 @@ MARGENS="$(node medir_margens.cjs)"
 echo "$MARGENS" | tail -1 | grep -q "todas as telas dentro" || { echo "$MARGENS" | grep FORA; echo "Há telas fora da margem segura: ajuste o roteiro e gere de novo."; exit 1; }
 df -Pk "$V" | awk 'NR==2 && $4 < 10 * 1048576 {print "Aviso: menos de 10 GB livres no disco."}'
 
-node node_modules/hyperframes/dist/cli.js render . -o "$V/legenda.mov" --format mov --resolution "$PRESET" --fps "$FPS" --quiet 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tail -2
+bash "$FERRAMENTAS/rodar_render.sh" -o "$V/legenda.mov" --format mov --resolution "$PRESET" --fps "$FPS"
 
 # Vídeo sem áudio também passa: o "?" torna a faixa opcional.
 ffmpeg -hide_banner -loglevel error -stats -y -i "$SRC" -i "$V/legenda.mov" \

@@ -15,6 +15,7 @@ caminho() { (cd "$1" && { pwd -W 2>/dev/null || pwd -P; }); }
 # PATH pelo $HOME: no Git Bash ele vem como /c/Users/...; a forma C:/ do caminho() quebraria no ":" do PATH.
 export PATH="$HOME/.creator-hub/bin:$PATH"
 P="$(caminho "$1")"
+FERRAMENTAS="$(caminho "$(dirname "$0")/..")"
 mkdir -p "$(dirname "$2")"
 OUT="$(caminho "$(dirname "$2")")/$(basename "$2")"
 MODO="${3:-}"
@@ -29,12 +30,12 @@ df -Pk "$P" | awk 'NR==2 && $4 < 10 * 1048576 {print "Aviso: menos de 10 GB livr
 
 if [ "$MODO" = "--desfoque" ]; then
   QUADRUPLO="$P/.quadruplo.mp4"
-  node node_modules/hyperframes/dist/cli.js render . -o "$QUADRUPLO" --fps 120000/1001 --quality high --quiet 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tail -2
+  bash "$FERRAMENTAS/rodar_render.sh" -o "$QUADRUPLO" --fps 120000/1001 --quality high
   ffmpeg -hide_banner -loglevel error -y -i "$QUADRUPLO" -vf "tmix=frames=4:weights='1 1 1 1',select='not(mod(n+1\,4))',setpts=N/(30000/1001)/TB" \
     -r 30000/1001 -c:v libx264 -crf 20 -maxrate 12M -bufsize 24M -preset slow -pix_fmt yuv420p -c:a copy -movflags +faststart "$OUT"
   rm -f "$QUADRUPLO"
 else
-  node node_modules/hyperframes/dist/cli.js render . -o "$OUT" --fps 30000/1001 --quality high --quiet 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tail -2
+  bash "$FERRAMENTAS/rodar_render.sh" -o "$OUT" --fps 30000/1001 --quality high
 fi
 
 volume() { ffmpeg -hide_banner -nostats -i "$1" -af ebur128=framelog=quiet -vn -f null - 2>&1 | tr -d '\r' | grep -E '^ +I:' | tail -1 | grep -oE -e '-[0-9.]+'; }
