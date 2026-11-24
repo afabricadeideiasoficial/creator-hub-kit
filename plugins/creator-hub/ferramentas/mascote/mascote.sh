@@ -91,7 +91,7 @@ PY
     mkdir -p "$(dirname "$2")"
     OUT="$(caminho "$(dirname "$2")")/$(basename "$2")"
     df -Pk "$V" | awk 'NR==2 && $4 < 10 * 1048576 {print "Aviso: menos de 10 GB livres no disco."}'
-    (cd "$V" && node node_modules/hyperframes/dist/cli.js render . -o "$OUT" --fps 30 --quality high --quiet 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tail -2)
+    (cd "$V" && bash "$FERRAMENTAS/rodar_render.sh" -o "$OUT" --fps 30 --quality high)
     CELULAR="${OUT%.mp4}-celular.mp4"
     ffmpeg -hide_banner -loglevel error -y -i "$OUT" -c:v libx264 -crf 25 -preset medium -c:a aac -b:a 128k -movflags +faststart "$CELULAR"
     DUR=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$OUT" | tr -d '\r')
