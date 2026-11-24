@@ -108,13 +108,16 @@ test("chatgpt: a fabrica atualiza no modo ChatGPT, sem o comando do Windows", ()
   assert.match(fabrica, /## Problemas/);
 });
 
-test("chatgpt: AGENTS.md e .codex/config.toml na pasta, com os caminhos da casa", () => {
+test("chatgpt: AGENTS.md e .codex/config.toml na pasta, sem abrir gravação fora dela", () => {
   const { casa, edicoes } = casaDeMentira();
   preparar(PLUGIN, edicoes);
   assert.match(fs.readFileSync(path.join(edicoes, "AGENTS.md"), "utf8"), /novo-video/);
   const config = fs.readFileSync(path.join(edicoes, ".codex/config.toml"), "utf8");
-  assert.ok(config.includes(JSON.stringify(path.join(casa, ".creator-hub"))));
   assert.match(config, /network_access = true/);
+  // A regra deixa os scripts do kit rodarem fora do sandbox sem perguntar. Se o sandbox pudesse gravar onde moram
+  // os scripts, os programas ou o navegador deles, bastaria trocar um para sair do sandbox.
+  assert.ok(!config.includes("writable_roots"), config);
+  assert.ok(!config.includes(casa), config);
 });
 
 test("chatgpt: rodar de novo não perde o AGENTS.md da pessoa nem uma skill dela", () => {
@@ -196,4 +199,79 @@ test("chatgpt: o instalador para dentro do sandbox do Codex, explicando o que fa
   assert.match(r.stdout, /fora do sandbox/);
   assert.match(r.stdout, /zsh -s -- --chatgpt/);
   assert.ok(!fs.existsSync(path.join(casa, ".creator-hub")), "não pode ter começado a instalar");
+});
+
+// De onde vêm os scripts que o assistente roda: as skills geradas e o que um script chama. Lista feita pelo que é
+// citado, não pela varredura da pasta: um script novo que fique de fora das regras faz o teste falhar.
+test("chatgpt: todo script citado nas skills ou chamado por outro script tem regra", () => {
+  const { regrasCodex } = require(path.join(PLUGIN, "ferramentas/chatgpt/preparar.cjs"));
+  const raiz = path.resolve(PLUGIN);
+  const comRegra = new Set([...regrasCodex(raiz).matchAll(/"bash", "([^"]+)"/g)].map((m) => m[1]));
+  const { edicoes } = casaDeMentira();
+  preparar(PLUGIN, edicoes);
+  const citados = new Set();
+  for (const arq of arquivosMd(path.join(edicoes, ".agents/skills"))) {
+    for (const [, rel] of fs.readFileSync(arq, "utf8").matchAll(/(?:<ferramentas>|\/ferramentas)\/(\w[\w./-]*\.sh)/g)) citados.add(rel);
+  }
+  for (const d of fs.readdirSync(path.join(raiz, "ferramentas"), { withFileTypes: true, recursive: true })) {
+    if (!d.isFile() || !d.name.endsWith(".sh")) continue;
+    const texto = fs.readFileSync(path.join(d.parentPath ?? d.path, d.name), "utf8");
+    for (const [, rel] of texto.matchAll(/\$FERRAMENTAS\/([\w./-]+\.sh)/g)) citados.add(rel);
+  }
+  assert.ok(citados.has("rodar_render.sh"), "o render passa pelo rodar_render.sh");
+  assert.ok(citados.size > 25, `só ${citados.size} scripts citados`);
+  for (const rel of citados) assert.ok(comRegra.has(path.join(raiz, "ferramentas", rel)), `sem regra: ${rel}`);
+});
+
+test("chatgpt: o guia de cada corte vai junto, sem o que só existe no Claude", () => {
+  const { edicoes } = casaDeMentira();
+  preparar(PLUGIN, edicoes);
+  const guia = path.join(edicoes, ".agents/skills/cortes/references/editar-um-corte.md");
+  assert.match(fs.readFileSync(guia, "utf8"), /^# Editar um corte/);
+  const skill = fs.readFileSync(path.join(edicoes, ".agents/skills/cortes/SKILL.md"), "utf8");
+  assert.match(skill, /references\/editar-um-corte\.md/);
+  assert.ok(!skill.includes("instrucoes_do_corte.sh"), "o script mostra o guia do Claude");
+});
+
+test("chatgpt: todo guia que um script mostra tem versão para o ChatGPT", () => {
+  const { GUIAS } = require(path.join(PLUGIN, "ferramentas/chatgpt/preparar.cjs"));
+  const tratados = Object.values(GUIAS).flat().sort();
+  const guias = fs.readdirSync(path.join(PLUGIN, "ferramentas"), { withFileTypes: true, recursive: true })
+    .filter((d) => d.isFile() && d.name.endsWith(".md"))
+    .map((d) => path.relative(PLUGIN, path.join(d.parentPath ?? d.path, d.name)))
+    .sort();
+  assert.deepEqual(guias, tratados);
+});
+
+test("chatgpt: as skills dizem onde fica a pasta de ferramentas, que os guias do servidor citam", () => {
+  const { edicoes } = casaDeMentira();
+  preparar(PLUGIN, edicoes);
+  for (const nome of fs.readdirSync(path.join(PLUGIN, "skills"))) {
+    const texto = fs.readFileSync(path.join(edicoes, ".agents/skills", nome, "SKILL.md"), "utf8");
+    assert.ok(texto.includes(`\`<ferramentas>\`, é \`${path.resolve(PLUGIN)}/ferramentas\``), nome);
+  }
+});
+
+test("chatgpt: o que os scripts mostram na tela não manda abrir o app do Claude", () => {
+  for (const d of fs.readdirSync(path.join(PLUGIN, "ferramentas"), { withFileTypes: true, recursive: true })) {
+    if (!d.isFile() || !d.name.endsWith(".sh")) continue;
+    const linhas = fs.readFileSync(path.join(d.parentPath ?? d.path, d.name), "utf8").split("\n");
+    for (const l of linhas) assert.ok(l.trim().startsWith("#") || !/Claude/.test(l), `${d.name}: ${l.trim()}`);
+  }
+});
+
+test("chatgpt: comando de skill sem $HOME, ~, curinga nem redirecionamento, que o Codex não compara com as regras", () => {
+  const { casa, edicoes } = casaDeMentira();
+  preparar(PLUGIN, edicoes);
+  let vistos = 0;
+  for (const arq of arquivosMd(path.join(edicoes, ".agents/skills"))) {
+    for (const [, linha] of fs.readFileSync(arq, "utf8").matchAll(/^(bash "[^\n]*)$/gm)) {
+      vistos++;
+      // <pasta-do-video> e afins são lacunas que o assistente preenche
+      const semLacunas = linha.replace(/<[^<>]+>/g, "x");
+      assert.ok(!/[$~*?<>|;&]/.test(semLacunas), `${path.relative(edicoes, arq)}: ${linha}`);
+    }
+  }
+  assert.ok(vistos > 40, `só ${vistos} comandos`);
+  assert.ok(fs.readFileSync(path.join(edicoes, ".agents/skills/mascote-3d/SKILL.md"), "utf8").includes(`"${casa}/Edicoes/<Canal>/mascote.js"`));
 });

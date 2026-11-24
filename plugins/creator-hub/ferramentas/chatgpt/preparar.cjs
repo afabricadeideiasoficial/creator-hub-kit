@@ -17,18 +17,28 @@ const SKILLS_DO_KIT = /\b(novo-video|cortes|plano-continuo|mascote-3d|cliente-no
 const LOGIN =
   "abrir os ajustes do app do ChatGPT (Cmd + vírgula), entrar em Servidores MCP e clicar em Autenticar no `fabrica`";
 
-const AVISO = `> **Neste app (ChatGPT, pelo Codex).** Estas instruções valem para dois apps. Aqui:
+// Guias que ficam fora das skills e que um script mostraria com o texto do Claude: vão adaptados para references/.
+const GUIAS = { cortes: ["ferramentas/cortes/editar-um-corte.md"] };
+
+const aviso = (raiz) => `> **Neste app (ChatGPT, pelo Codex).** Estas instruções valem para dois apps. Aqui:
 > - Quando for perguntar, faça todas as perguntas numa mensagem só, cada uma com opções numeradas e a recomendada primeiro, e espere a pessoa responder com os números.
 > - Para ler arquivos e ver pastas, use \`cat\`, \`sed -n\`, \`ls\` e \`rg\`. Para olhar uma imagem do computador, use a sua ferramenta de ver imagens.
 > - Rode todo script do kit (\`bash ".../ferramentas/....sh"\`) já pedindo para rodar fora do sandbox (\`sandbox_permissions: "require_escalated"\`). A transcrição usa a placa de vídeo do Mac e a conferência e o render usam um navegador invisível, e o sandbox bloqueia os dois. A instalação deixou uma regra que libera só esses scripts, sem perguntar à pessoa. Se ainda assim o app pedir autorização, diga em uma linha que é a máquina de edição.
+> - Nesses comandos, escreva os caminhos por extenso (\`/Users/...\`) e entre aspas, sem \`~\`, \`$HOME\`, curinga nem redirecionamento: comando com isso não casa com a regra e pede autorização à toa.
+> - Onde uma receita ou um guia falar em \`<ferramentas>\`, é \`${raiz}/ferramentas\`.
 > - Se o conector \`fabrica\` pedir login ou disser "token expirado", diga para a pessoa ${LOGIN}.
 > - Os pedidos começam com \`$\`, como \`$novo-video\`. Se a pessoa colar um pedido com \`/\` vindo da vitrine, como "/novo-video estilo: x", trate igual.`;
 
 // [o que procurar, pelo que trocar]. Cada troca tira um pedaço que só existe no Claude; o teste confere que
 // nada do Claude sobrou, então uma frase nova nas skills que escape daqui faz o teste falhar.
-function trocas(raiz) {
+function trocas(raiz, casa) {
   return [
+    // antes da troca do caminho: o script mostraria o guia com o texto do Claude
+    [/Rode `bash "\$\{CLAUDE_PLUGIN_ROOT\}\/ferramentas\/cortes\/instrucoes_do_corte\.sh"` e siga o que ele mostrar até o fim\./g,
+      "Leia inteiro o `references/editar-um-corte.md` desta skill e siga até o fim."],
     [/\$\{CLAUDE_PLUGIN_ROOT\}/g, raiz],
+    // o Codex não compara com as regras um comando que tenha variável: o caminho vai por extenso
+    [/\$HOME(?=\/)/g, casa],
     [/mostre as escolhas em cartões/g, "mostre as escolhas como opções numeradas, para a pessoa responder só com o número"],
     [/Faça uma única chamada de `AskUserQuestion`/g, "Faça todas as perguntas numa mensagem só, com opções numeradas e a recomendada primeiro"],
     [/faça uma única chamada de `AskUserQuestion`/g, "faça todas as perguntas numa mensagem só, com opções numeradas e a recomendada primeiro"],
@@ -62,6 +72,11 @@ function trocas(raiz) {
       " Para olhar uma imagem, use a sua ferramenta de ver imagens."],
     [/Abra, com a ferramenta de leitura, o `analise\/analise\.json` e todas as imagens/g, "Leia o `analise/analise.json` e olhe, com a sua ferramenta de ver imagens, todas as imagens"],
     [/Edite os arquivos com a sua ferramenta de edição, nunca com um script: script pede permissão à pessoa a cada vez\./g, "Edite os arquivos com a sua ferramenta de edição, nunca com um script."],
+    // o guia de um corte
+    [/quem mostra o resultado é a conversa principal/g, "o resultado é mostrado depois, no passo de aprovar"],
+    [/não rode comandos próprios como `ls`, `cat`, `grep`, `ffmpeg` ou `node`: cada um abre uma janela de permissão para a pessoa\. Para ler um arquivo, use a sua ferramenta de leitura\./g,
+      "não rode `ffmpeg` ou `node` por conta própria. Para ler um arquivo ou ver uma pasta, pode usar `cat`, `sed -n`, `ls` e `rg`."],
+    [/Script de `python` ou `sed` abre uma janela de permissão para a pessoa\./g, "Não use script de `python` ou `sed` para isso."],
     // fabrica
     [/nada de listar pastas nem de ler `~\/\.claude\/plugins`\. Cada comando próprio abre uma janela de permissão para a pessoa\./g, "nada de listar pastas nem de abrir outros arquivos do kit."],
     [/## Atualizar\n[\s\S]*?(?=\n## )/g, `## Atualizar
@@ -83,16 +98,16 @@ Depois, peça para a pessoa abrir uma conversa nova na pasta Edicoes. No Windows
   ];
 }
 
-function paraChatGPT(texto, raiz, comAviso) {
+function paraChatGPT(texto, raiz, comAviso, casa = "$HOME") {
   let saida = texto;
   // a troca vai por função: um "$" no texto novo (o caminho, o "$novo-video") entra como está
-  for (const [de, para] of trocas(raiz)) saida = saida.replace(de, () => para);
+  for (const [de, para] of trocas(raiz, casa)) saida = saida.replace(de, () => para);
   if (comAviso) {
     // depois do cabeçalho (--- ... ---), antes do título
     const fim = saida.startsWith("---\n") ? saida.indexOf("\n---\n", 4) : -1;
     if (fim < 0) throw new Error("skill sem cabeçalho");
     const corte = fim + 5;
-    saida = `${saida.slice(0, corte)}\n${AVISO}\n${saida.slice(corte)}`;
+    saida = `${saida.slice(0, corte)}\n${aviso(raiz)}\n${saida.slice(corte)}`;
   }
   return saida;
 }
@@ -113,22 +128,25 @@ Responda sempre em português (Brasil), de um jeito simples: quem usa esta pasta
 `;
 }
 
-// Só vale depois que a pessoa confia na pasta. Sem ele, o Codex pede autorização a cada script com internet.
-function configToml(casa) {
-  const raiz = (p) => JSON.stringify(path.join(casa, p));
+// Só vale depois que a pessoa confia na pasta. A rede é para os comandos que as ferramentas do servidor devolvem.
+// Nada de writable_roots: os scripts do kit já rodam fora do sandbox (regrasCodex), e o sandbox não pode gravar onde
+// moram os scripts, os programas e o navegador que eles usam. Com ~/.creator-hub ou ~/.cache graváveis, bastaria
+// trocar um arquivo lá para rodar qualquer coisa fora do sandbox sem perguntar.
+function configToml() {
   return `# ${MARCA}. Vale só nesta pasta, depois de confiar nela.
 sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 
 [sandbox_workspace_write]
 network_access = true
-writable_roots = [${raiz(".creator-hub")}, ${raiz(".cache")}]
 `;
 }
 
 // Regras do Codex (~/.codex/rules): cada script do kit roda fora do sandbox sem perguntar, como a lista de
 // permissões do Claude. Uma regra por script, com o caminho inteiro: outro script, "bash -c" ou comando
-// encadeado não casam. Lista de opções dentro do pattern invalida o arquivo inteiro, então nada disso aqui.
+// encadeado não casam. Atenção ao que a regra alcança: alguns destes scripts rodam programas da pasta do vídeo
+// (medir_margens.cjs, o render), então quem escreve nessa pasta decide o que roda fora do sandbox. É o mesmo alcance
+// que o kit já tem no Claude, onde os comandos não têm sandbox. Lista de opções dentro do pattern invalida o arquivo inteiro, então nada disso aqui.
 function regrasCodex(raiz) {
   const scripts = fs
     .readdirSync(path.join(raiz, "ferramentas"), { withFileTypes: true, recursive: true })
@@ -159,14 +177,14 @@ function escreverGuardando(arq, conteudo, avisos) {
   fs.writeFileSync(arq, conteudo);
 }
 
-function copiarSkill(origem, destino, raiz) {
+function copiarSkill(origem, destino, raiz, casa) {
   fs.rmSync(destino, { recursive: true, force: true });
   fs.mkdirSync(destino, { recursive: true });
   for (const item of fs.readdirSync(origem, { withFileTypes: true })) {
     const de = path.join(origem, item.name);
     const para = path.join(destino, item.name);
-    if (item.isDirectory()) copiarSkill(de, para, raiz);
-    else if (item.name.endsWith(".md")) fs.writeFileSync(para, paraChatGPT(fs.readFileSync(de, "utf8"), raiz, item.name === "SKILL.md"));
+    if (item.isDirectory()) copiarSkill(de, para, raiz, casa);
+    else if (item.name.endsWith(".md")) fs.writeFileSync(para, paraChatGPT(fs.readFileSync(de, "utf8"), raiz, item.name === "SKILL.md", casa));
     else fs.copyFileSync(de, para);
   }
 }
@@ -191,7 +209,12 @@ function preparar(plugin, edicoes) {
       avisos.push(`já existe uma skill sua chamada ${nome} em .agents/skills: não mexi nela`);
       continue;
     }
-    copiarSkill(path.join(raiz, "skills", nome), destino, raiz);
+    copiarSkill(path.join(raiz, "skills", nome), destino, raiz, casa);
+    for (const guia of GUIAS[nome] ?? []) {
+      const para = path.join(destino, "references", path.basename(guia));
+      fs.mkdirSync(path.dirname(para), { recursive: true });
+      fs.writeFileSync(para, paraChatGPT(fs.readFileSync(path.join(raiz, guia), "utf8"), raiz, false, casa));
+    }
     feitas.push(nome);
   }
   // skill que saiu do kit numa versão nova: sai daqui também, só se fomos nós que a pusemos
@@ -204,14 +227,14 @@ function preparar(plugin, edicoes) {
   const config = path.join(edicoes, ".codex", "config.toml");
   if (!fs.existsSync(config) || ehNosso(config)) {
     fs.mkdirSync(path.dirname(config), { recursive: true });
-    fs.writeFileSync(config, configToml(casa));
+    fs.writeFileSync(config, configToml());
   } else {
     avisos.push("a pasta Edicoes já tinha um .codex/config.toml seu: não mexi nele");
   }
   return { skills: feitas, avisos };
 }
 
-module.exports = { paraChatGPT, preparar, agentsMd, configToml, regrasCodex, MARCA, COMANDO_MAC };
+module.exports = { paraChatGPT, preparar, agentsMd, configToml, regrasCodex, GUIAS, MARCA, COMANDO_MAC };
 
 if (require.main === module) {
   const args = process.argv.slice(2);
