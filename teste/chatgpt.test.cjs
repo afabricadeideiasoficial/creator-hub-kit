@@ -275,3 +275,66 @@ test("chatgpt: comando de skill sem $HOME, ~, curinga nem redirecionamento, que 
   assert.ok(vistos > 40, `só ${vistos} comandos`);
   assert.ok(fs.readFileSync(path.join(edicoes, ".agents/skills/mascote-3d/SKILL.md"), "utf8").includes(`"${casa}/Edicoes/<Canal>/mascote.js"`));
 });
+
+// ---------------------------------------------------------------------------
+// Windows: o Codex roda no PowerShell, e os scripts do kit vão pelo Git Bash com o caminho inteiro.
+const GIT_BASH = "C:\\Program Files\\Git\\bin\\bash.exe";
+const { COMANDO_WINDOWS, regrasCodex: regras } = require(path.join(PLUGIN, "ferramentas/chatgpt/preparar.cjs"));
+const noGitBash = GIT_BASH.replaceAll("\\", "/");
+
+function edicoesNoWindows() {
+  const { casa, edicoes } = casaDeMentira();
+  preparar(PLUGIN, edicoes, { bash: noGitBash });
+  return { casa, edicoes };
+}
+
+test("chatgpt no Windows: nada do Claude, do Mac nem do bash solto sobra nas skills", () => {
+  const { edicoes } = edicoesNoWindows();
+  const proibidos = [...SO_NO_CLAUDE, /(^ *|`)bash "/m, /Cmd \+/, /placa de vídeo do Mac/, /sed -n/, /~\/(Edicoes|\.creator-hub)/, /\| zsh/];
+  for (const arq of [...arquivosMd(path.join(edicoes, ".agents/skills")), path.join(edicoes, "AGENTS.md")]) {
+    const texto = fs.readFileSync(arq, "utf8");
+    for (const p of proibidos) {
+      const achado = texto.match(p);
+      assert.ok(!achado, `${path.relative(edicoes, arq)}: "${achado && texto.slice(achado.index, achado.index + 80)}"`);
+    }
+  }
+});
+
+test("chatgpt no Windows: todo script do kit é chamado pelo Git Bash, com o caminho inteiro e barras normais", () => {
+  const { edicoes } = edicoesNoWindows();
+  let vistos = 0;
+  for (const arq of arquivosMd(path.join(edicoes, ".agents/skills"))) {
+    for (const [, linha] of fs.readFileSync(arq, "utf8").matchAll(/^ *(& "[^\n]*)$/gm)) {
+      vistos++;
+      assert.ok(linha.startsWith(`& "${noGitBash}" "`), linha);
+      assert.ok(!linha.includes("\\"), linha);
+    }
+  }
+  assert.ok(vistos > 40, `só ${vistos} comandos`);
+});
+
+test("chatgpt no Windows: a fabrica atualiza pelo PowerShell, e os comandos do servidor vão por arquivo", () => {
+  const { edicoes } = edicoesNoWindows();
+  const fabrica = fs.readFileSync(path.join(edicoes, ".agents/skills/fabrica/SKILL.md"), "utf8");
+  assert.ok(fabrica.includes(`\`\`\`powershell\n${COMANDO_WINDOWS}`));
+  assert.ok(!fabrica.includes("ainda não roda no ChatGPT"));
+  assert.match(fabrica, /comando\.sh/);
+});
+
+test("chatgpt no Windows: as regras usam o Git Bash e barras normais", () => {
+  const linhas = regras(path.resolve(PLUGIN), noGitBash).split("\n").filter((l) => l.startsWith("prefix_rule("));
+  assert.equal(linhas.length, regras(path.resolve(PLUGIN)).split("\n").filter((l) => l.startsWith("prefix_rule(")).length);
+  for (const l of linhas) {
+    assert.ok(l.startsWith(`prefix_rule(pattern = ["${noGitBash}", "`), l);
+    assert.ok(!l.includes("\\"), l);
+  }
+});
+
+test("chatgpt: no Mac, as skills não têm nada do Windows", () => {
+  const { edicoes } = casaDeMentira();
+  preparar(PLUGIN, edicoes);
+  for (const arq of [...arquivosMd(path.join(edicoes, ".agents/skills")), path.join(edicoes, "AGENTS.md")]) {
+    const texto = fs.readFileSync(arq, "utf8");
+    for (const p of [/bash\.exe/, /powershell/i, /Get-Content/, /Ctrl \+ vírgula/]) assert.ok(!p.test(texto), `${path.relative(edicoes, arq)}: ${p}`);
+  }
+});

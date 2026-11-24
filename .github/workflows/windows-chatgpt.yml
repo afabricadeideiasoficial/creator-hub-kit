@@ -1,0 +1,153 @@
+# Instala o modo ChatGPT num Windows de verdade (sem o app do ChatGPT) e roda as ferramentas do jeito que o Codex
+# rodaria: no PowerShell 5.1, com o comando exato das skills geradas. Nao chama modelo nenhum e nao usa segredo.
+name: ChatGPT no Windows
+on:
+  push:
+    branches: [chatgpt-windows]
+permissions:
+  contents: read
+jobs:
+  instalar:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Codex de linha de comando, so para conferir
+        shell: powershell
+        run: |
+          npm i -g @openai/codex@0.171.0 --no-audit --no-fund
+          codex.cmd --version
+
+      - name: Testes do kit
+        shell: powershell
+        continue-on-error: true
+        run: node --test --test-name-pattern="chatgpt|instalador do Windows" (Get-ChildItem teste\*.test.cjs | ForEach-Object FullName)
+
+      - name: Do zero, como a pessoa cola (iex)
+        shell: powershell
+        run: |
+          $env:KIT_CHATGPT = '1'; $env:KIT_FONTE = $env:GITHUB_WORKSPACE
+          iex (Get-Content -Raw -Encoding UTF8 instalador\instalar.ps1)
+          "saida: $LASTEXITCODE"
+          if ($LASTEXITCODE -ne 0) { Get-Content $HOME\.creator-hub\instalador.log -Tail 40; exit 1 }
+
+      - name: O que ficou na maquina
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -Force $HOME\Edicoes | ForEach-Object Name
+          Get-Content -Encoding UTF8 $HOME\.codex\config.toml
+          Get-Content -Encoding UTF8 $HOME\Edicoes\.codex\config.toml
+          (Get-Content -Encoding UTF8 $HOME\.codex\rules\creator-hub.rules)[1]
+          Get-Content -Encoding UTF8 $HOME\Edicoes\AGENTS.md
+          if ((Test-Path $HOME\Edicoes\CLAUDE.md) -or (Test-Path $HOME\Edicoes\.claude)) { throw 'criou arquivo do Claude' }
+          $n = (Select-String -Path $HOME\.codex\config.toml -Pattern 'mcp_servers.fabrica').Count
+          if ($n -ne 1) { throw "conector declarado $n vezes" }
+
+      - name: Comandos das skills, no PowerShell, exatamente como estao
+        shell: powershell
+        run: |
+          $skill = Get-Content -Encoding UTF8 -Raw $HOME\Edicoes\.agents\skills\fabrica\SKILL.md
+          $cmd = [regex]::Match($skill, '(?m)^& ".*conferir_instalacao\.sh"').Value
+          if (-not $cmd) { throw 'nao achei o comando na skill' }
+          $cmd
+          $saida = Invoke-Expression $cmd | Out-String
+          $saida
+          if ($saida -notmatch '0\.8\.' -or $saida -match 'Falta na instala') { throw 'a conferencia nao passou' }
+          $pasta = "$HOME/Edicoes/Cliente Jo" + [char]0xe3 + "o/Novembro/Brutos" -replace '\\', '/'
+          New-Item -ItemType Directory -Force $pasta | Out-Null
+          & "$HOME\.creator-hub\bin\ffmpeg.exe" -hide_banner -loglevel error -y -f lavfi -i testsrc=size=720x1280:rate=30:duration=3 -f lavfi -i sine=duration=3 -shortest "$pasta/meu video.mp4"
+          $bash = [regex]::Match($cmd, '^& "([^"]+)"').Groups[1].Value
+          $ferr = [regex]::Match($cmd, '"([^"]+/ferramentas)/').Groups[1].Value
+          & $bash "$ferr/quadros.sh" "$pasta/meu video.mp4" "$pasta/folha.jpg"
+          if (-not (Test-Path "$pasta/folha.jpg")) { throw 'quadros.sh nao gravou a folha' }
+          & $bash "$ferr/cor_da_imagem.sh" "$pasta/folha.jpg"
+
+      - name: Comando do servidor salvo num arquivo (mkdir, curl e encadeado)
+        shell: powershell
+        run: |
+          $bash = [regex]::Match((Get-Content -Encoding UTF8 -Raw $HOME\Edicoes\.agents\skills\fabrica\SKILL.md), '(?m)^& "([^"]+)"').Groups[1].Value
+          Set-Location $HOME\Edicoes
+          [IO.File]::WriteAllText("$PWD\comando.sh", "mkdir -p teste-servidor && curl -sS --fail -o teste-servidor/x.json `"https://kit.creatorflowia.com/.well-known/oauth-protected-resource`" ; echo saiu `$?; ls teste-servidor`n")
+          & $bash comando.sh
+
+      - name: O que o Codex entende (sem chamar o modelo)
+        shell: powershell
+        continue-on-error: true
+        run: |
+          $skill = Get-Content -Encoding UTF8 -Raw $HOME\Edicoes\.agents\skills\fabrica\SKILL.md
+          $m = [regex]::Match($skill, '(?m)^& "([^"]+)" "([^"]+conferir_instalacao\.sh)"')
+          codex.cmd mcp get fabrica
+          "== regra, comando direto"
+          codex.cmd execpolicy check --rules $HOME\.codex\rules\creator-hub.rules -- $m.Groups[1].Value $m.Groups[2].Value
+          "== outro script nao pode casar"
+          codex.cmd execpolicy check --rules $HOME\.codex\rules\creator-hub.rules -- $m.Groups[1].Value "C:/outro.sh"
+          $p = $HOME -replace '\\', '\\'
+          Add-Content -Encoding ASCII $HOME\.codex\config.toml "`n[projects.`"$p\\Edicoes`"]`ntrust_level = `"trusted`""
+          Set-Location $HOME\Edicoes
+          codex.cmd debug prompt-input oi | Out-File -Encoding utf8 $env:RUNNER_TEMP\prompt.json
+          $t = Get-Content -Encoding UTF8 -Raw $env:RUNNER_TEMP\prompt.json
+          "AGENTS lido: " + ($t -match 'Minha pasta de edi')
+          foreach ($s in 'cliente-novo','cortes','fabrica','mascote-3d','novo-video','plano-continuo','referencia') { "skill ${s}: " + ($t -match "- ${s}: ") }
+          "regras lidas: " + ($t -match 'already been approved')
+          $i = $t.IndexOf('sandbox_mode'); if ($i -gt 0) { $t.Substring($i, [Math]::Min(1600, $t.Length - $i)) }
+          $j = $t.IndexOf('The writable roots'); if ($j -gt 0) { $t.Substring($j, 300) }
+          foreach ($x in 'powershell', 'PowerShell') { $k = $t.IndexOf($x); if ($k -gt 0) { '...' + $t.Substring([Math]::Max(0, $k - 120), 320) } }
+
+      - name: Area protegida do Windows (so para saber)
+        shell: powershell
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          codex.cmd sandbox --help
+          "== variaveis"; codex.cmd sandbox -- cmd /c "set CODEX"
+          "== escrever em .creator-hub"; codex.cmd sandbox -- cmd /c "echo x> $HOME\.creator-hub\dentro.txt"; Test-Path $HOME\.creator-hub\dentro.txt
+          "== transcricao"; codex.cmd sandbox -- "$HOME\.creator-hub\video-use\.venv\Scripts\python.exe" -c "import faster_whisper; print('importou')"
+
+      - name: Por cima e conferir
+        shell: powershell
+        run: |
+          $env:KIT_CHATGPT = '1'; $env:KIT_FONTE = $env:GITHUB_WORKSPACE
+          iex (Get-Content -Raw -Encoding UTF8 instalador\instalar.ps1); if ($LASTEXITCODE -ne 0) { exit 1 }
+          $env:KIT_CHECAR = '1'
+          iex (Get-Content -Raw -Encoding UTF8 instalador\instalar.ps1); if ($LASTEXITCODE -ne 0) { exit 1 }
+          $n = (Select-String -Path $HOME\.codex\config.toml -Pattern 'mcp_servers.fabrica').Count
+          if ($n -ne 1) { throw "conector declarado $n vezes" }
+
+      - name: Configuracao do app quebrada volta como estava
+        shell: powershell
+        run: |
+          $c = "$HOME\.codex\config.toml"; $quebrada = "model = `"sem fim`n"
+          [IO.File]::WriteAllText($c, $quebrada)
+          $env:KIT_CHATGPT = '1'; $env:KIT_FONTE = $env:GITHUB_WORKSPACE
+          iex (Get-Content -Raw -Encoding UTF8 instalador\instalar.ps1)
+          if ([IO.File]::ReadAllText($c) -ne $quebrada) { throw 'mexeu na configuracao quebrada' }
+          'voltou igual'
+
+      - name: Modo Claude igual ao do main
+        shell: powershell
+        run: |
+          git show origin/main:instalador/instalar.ps1 | Out-File -Encoding ascii $env:RUNNER_TEMP\main.ps1
+          $env:KIT_CHECAR = '1'; $env:KIT_FONTE = $env:GITHUB_WORKSPACE
+          $a = powershell -NoProfile -ExecutionPolicy Bypass -File $env:RUNNER_TEMP\main.ps1 | Out-String
+          $b = powershell -NoProfile -ExecutionPolicy Bypass -File instalador\instalar.ps1 | Out-String
+          $a = $a -replace '\d+ GB', 'N GB'; $b = $b -replace '\d+ GB', 'N GB'
+          $b
+          if ($a -ne $b) { Compare-Object ($a -split "`n") ($b -split "`n"); throw 'o modo Claude mudou' }
+          'igual'
+
+      - name: Sem o Git, para e explica
+        shell: powershell
+        run: |
+          Rename-Item 'C:\Program Files\Git' 'Git-escondido'
+          try {
+            $env:KIT_CHATGPT = '1'; $env:KIT_FONTE = $env:GITHUB_WORKSPACE
+            $chave = 'HKLM:\SOFTWARE\GitForWindows'
+            $saida = powershell -NoProfile -ExecutionPolicy Bypass -File instalador\instalar.ps1 | Out-String
+            $saida
+            if ($saida -notmatch 'git-scm.com/download/win') { throw 'nao explicou o Git' }
+          } finally { Rename-Item 'C:\Program Files\Git-escondido' 'Git' }

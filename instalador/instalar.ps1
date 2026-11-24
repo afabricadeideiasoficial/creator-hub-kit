@@ -3,7 +3,8 @@
 #
 #   irm <url> | iex                                          instala o que falta
 #   $env:KIT_CHECAR=1; irm <url> | iex                       so confere, sem instalar nada
-#   powershell -ExecutionPolicy Bypass -File instalar.ps1 [--checar]    o mesmo, rodando do arquivo
+#   $env:KIT_CHATGPT='1'; irm <url> | iex                    para o app do ChatGPT (Codex), no lugar do Claude
+#   powershell -ExecutionPolicy Bypass -File instalar.ps1 [--checar] [--chatgpt]    o mesmo, rodando do arquivo
 #
 # So para testar: $env:KIT_FONTE=<pasta> copia os arquivos do kit dessa pasta em vez de baixar do GitHub.
 #
@@ -41,6 +42,7 @@
   $PYTHON_PACOTES_ATE = '2026-11-01T00:00:00Z'
 
   $KIT_RAW = 'https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main'
+  $KIT_MCP_URL = 'https://kit.creatorflowia.com/mcp'
   $KIT_ZIP = 'https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/zip/refs/heads/main'
   $ARQ_TRANSCRICAO = 'plugins/creator-hub/ferramentas/transcribe_local.py'
   $ARQ_PACKAGE = 'plugins/creator-hub/ferramentas/modelo/package.json'
@@ -51,9 +53,12 @@
   try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch {}
   try { [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false) } catch {}
 
+  $CHATGPT = ($args -contains '--chatgpt') -or ($args -contains '-chatgpt') -or ($env:KIT_CHATGPT -eq '1')
+  $APP = 'Claude'
+  if ($CHATGPT) { $APP = 'ChatGPT' }
   $CHECAR = ($args -contains '--checar') -or ($args -contains '-checar') -or ($env:KIT_CHECAR -eq '1')
   $FALHAS = New-Object System.Collections.Generic.List[string]
-  $E = @{ erro = ''; saida = ''; empresa = $false }
+  $E = @{ erro = ''; saida = ''; empresa = $false; semCodex = $false }
 
   $RAIZ = Join-Path $HOME '.creator-hub'
   $BIN = Join-Path $RAIZ 'bin'
@@ -70,6 +75,10 @@
   $MARCA = Join-Path $PAC 'node_modules\.kit-lock'
   $EDICOES = Join-Path $HOME 'Edicoes'
   $MKT = Join-Path $RAIZ 'marketplace'
+  $CODEX_CASA = $env:CODEX_HOME
+  if (-not $CODEX_CASA) { $CODEX_CASA = Join-Path $HOME '.codex' }
+  $CODEX_CONFIG = Join-Path $CODEX_CASA 'config.toml'
+  $CODEX_REGRAS = Join-Path (Join-Path $CODEX_CASA 'rules') 'creator-hub.rules'
   # O Node acha a pasta do Chrome pelo USERPROFILE, que quase sempre e igual ao $HOME.
   $PERFIL = $env:USERPROFILE
   if (-not $PERFIL) { $PERFIL = $HOME }
@@ -661,12 +670,171 @@
     AnotarFalha 'Plugin do kit: n\u00e3o consegui ligar o plugin na pasta Edicoes. Rode o instalador de novo.'
   }
 
+  # -------------------------------------------------------------------------
+  # Modo ChatGPT: o app do ChatGPT roda o kit pelo Codex, e os comandos dele vao para o PowerShell. As ferramentas
+  # do kit sao em bash, entao cada uma e chamada pelo Git Bash com o caminho inteiro: so "bash" pode abrir o WSL.
+  # As skills vao para Edicoes\.agents\skills (ferramentas/chatgpt/preparar.cjs). O login a pessoa faz nos ajustes do
+  # app: o "codex mcp add" abre o navegador e fica esperando, entao a linha do conector e escrita direto no arquivo.
+
+  function AcharGitBash {
+    $pastas = @()
+    foreach ($chave in @('HKLM:\SOFTWARE\GitForWindows', 'HKCU:\SOFTWARE\GitForWindows')) {
+      try { $pastas += (Get-ItemProperty -LiteralPath $chave -Name 'InstallPath' -ErrorAction Stop).InstallPath } catch {}
+    }
+    foreach ($base in @($env:ProgramFiles, ${env:ProgramFiles(x86)})) { if ($base) { $pastas += (Join-Path $base 'Git') } }
+    if ($env:LOCALAPPDATA) { $pastas += (Join-Path $env:LOCALAPPDATA 'Programs\Git') }
+    foreach ($pasta in $pastas) {
+      if (-not $pasta) { continue }
+      $exe = Join-Path $pasta 'bin\bash.exe'
+      if ((Test-Path -LiteralPath $exe -PathType Leaf) -and ((PrimeiraLinha $exe @('--version')) -match 'GNU bash')) { return $exe }
+    }
+    return ''
+  }
+
+  # O programa do Codex so serve para conferir o conector e as regras. Onde o app o guarda no Windows nao e fixo:
+  # vale o do PATH ou o de um Codex aberto agora.
+  function AcharCodex {
+    foreach ($c in @(Get-Command 'codex.exe', 'codex.cmd' -CommandType Application -ErrorAction SilentlyContinue)) {
+      if ((PrimeiraLinha $c.Source @('--version')) -match 'codex') { return $c.Source }
+    }
+    foreach ($p in @(Get-Process -Name 'codex' -ErrorAction SilentlyContinue)) {
+      if ($p.Path -and ((PrimeiraLinha $p.Path @('--version')) -match 'codex')) { return $p.Path }
+    }
+    return ''
+  }
+
+  function GravarTexto($arquivo, $texto) { [IO.File]::WriteAllText($arquivo, $texto, (New-Object Text.UTF8Encoding($false))) }
+  function LerTexto($arquivo) { [IO.File]::ReadAllText($arquivo, (New-Object Text.UTF8Encoding($false))) }
+
+  # Qualquer forma de declarar o fabrica conta: duas declaracoes quebrariam a configuracao inteira do app.
+  function ConectorCadastrado {
+    if (-not (Test-Path -LiteralPath $CODEX_CONFIG)) { return $false }
+    return ((LerTexto $CODEX_CONFIG) -match '(?m)mcp_servers\.fabrica|^\s*fabrica\s*=')
+  }
+
+  function LigarConector($codex) {
+    if (ConectorCadastrado) { Linha 'Conector fabrica no ChatGPT: ok'; return }
+    if (-not $codex) {
+      $E.semCodex = $true
+      Linha 'Conector fabrica no ChatGPT: n\u00e3o achei o programa do ChatGPT. O que fazer est\u00e1 no fim.'
+      return
+    }
+    Write-Host -NoNewline (A '  Conector fabrica no ChatGPT: cadastrando... ')
+    $existia = Test-Path -LiteralPath $CODEX_CONFIG
+    $antes = ''
+    try {
+      if ($existia) { $antes = LerTexto $CODEX_CONFIG }
+      NovaPasta $CODEX_CASA
+      # uma tabela nova no fim do arquivo e TOML valido
+      GravarTexto $CODEX_CONFIG ($antes + "`n[mcp_servers.fabrica]`nurl = `"$KIT_MCP_URL`"`n")
+      if (Roda $codex @('mcp', 'get', 'fabrica')) { Write-Host 'pronto'; return }
+    } catch { Registra "conector -> $_" }
+    # o app da pessoa nao pode ficar pior do que estava
+    try {
+      if ($existia) { GravarTexto $CODEX_CONFIG $antes } elseif (Test-Path -LiteralPath $CODEX_CONFIG) { Remove-Item -LiteralPath $CODEX_CONFIG -Force -ErrorAction Stop }
+    } catch { Registra "conector, volta -> $_" }
+    Write-Host (A 'n\u00e3o deu certo')
+    AnotarFalha "Conector fabrica no ChatGPT: n\u00e3o consegui cadastrar. Nos ajustes do app do ChatGPT (Ctrl + v\u00edrgula), em Servidores MCP, adicione o servidor fabrica com o endere\u00e7o $KIT_MCP_URL."
+  }
+
+  function EhNosso($arquivo) {
+    return ((Test-Path -LiteralPath $arquivo) -and ((LerTexto $arquivo) -like '*creator-hub: gerado*'))
+  }
+
+  # O arquivo novo so vai para o lugar depois que o proprio Codex o le e libera um script, quando da para conferir.
+  function LigarRegras($codex, $bash) {
+    Write-Host -NoNewline (A '  Regras do kit no ChatGPT: gravando... ')
+    $novo = Join-Path $TMP 'creator-hub.rules'
+    $plugin = Join-Path $MKT 'plugins\creator-hub'
+    if (-not (Roda $NODE @((Join-Path $plugin 'ferramentas\chatgpt\preparar.cjs'), '--regras', $plugin, '--bash', $bash, '--saida', $novo))) {
+      Write-Host (A 'n\u00e3o deu certo')
+      AnotarFalha 'Regras do kit no ChatGPT: n\u00e3o consegui gerar. Rode o instalador de novo.'
+      return
+    }
+    if ($codex) {
+      $um = ((Join-Path $plugin 'ferramentas\abrir.sh') -replace '\\', '/')
+      $aceitou = (Roda $codex @('execpolicy', 'check', '--rules', $novo, '--', ($bash -replace '\\', '/'), $um)) -and ($E.saida -match '"decision":\s*"allow"')
+      if (-not $aceitou) {
+        Write-Host (A 'n\u00e3o deu certo')
+        AnotarFalha 'Regras do kit no ChatGPT: o app n\u00e3o aceitou as regras. O kit funciona, mas o app vai pedir autoriza\u00e7\u00e3o a cada passo.'
+        return
+      }
+    }
+    try {
+      NovaPasta (Split-Path -Parent $CODEX_REGRAS)
+      Move-Item -LiteralPath $novo -Destination $CODEX_REGRAS -Force -ErrorAction Stop
+      Write-Host 'pronto'
+    } catch {
+      Registra "regras -> $_"
+      Write-Host (A 'n\u00e3o deu certo')
+      AnotarFalha 'Regras do kit no ChatGPT: n\u00e3o consegui gravar. Rode o instalador de novo.'
+    }
+  }
+
+  function PastaChatgptPronta {
+    return ((Test-Path -LiteralPath (Join-Path $EDICOES '.agents\skills\novo-video\SKILL.md')) -and
+      (Test-Path -LiteralPath (Join-Path $EDICOES '.agents\skills\.creator-hub.json')) -and
+      (EhNosso (Join-Path $EDICOES 'AGENTS.md')))
+  }
+
+  function InstalarChatgpt {
+    if (Test-Path -LiteralPath (Join-Path $EDICOES '.claude/skills/novo-video/SKILL.md')) {
+      $E.empresa = $true
+      Linha 'Kit para o ChatGPT: este computador j\u00e1 tem o kit da empresa na pasta Edicoes. N\u00e3o instalei, para n\u00e3o misturar os dois.'
+      return
+    }
+    $bash = AcharGitBash
+    Registra "Git Bash: $(SemUsuario $bash)"
+    if ($bash) {
+      Linha 'Git Bash: ok'
+    } else {
+      Linha 'Git Bash: falta'
+      AnotarFalha 'Git Bash: as ferramentas do kit precisam do Git para Windows. Instale por git-scm.com/download/win, deixando tudo como vem marcado, e rode o instalador de novo.'
+    }
+    if ($CHECAR) {
+      if (PastaChatgptPronta) { Linha 'Pasta Edicoes para o ChatGPT: ok' } else { Linha 'Pasta Edicoes para o ChatGPT: falta'; AnotarFalha 'Pasta Edicoes para o ChatGPT' }
+      if (ConectorCadastrado) { Linha 'Conector fabrica no ChatGPT: ok' } else { Linha 'Conector fabrica no ChatGPT: falta'; AnotarFalha 'Conector fabrica no ChatGPT' }
+      if (EhNosso $CODEX_REGRAS) { Linha 'Regras do kit no ChatGPT: ok' } else { Linha 'Regras do kit no ChatGPT: falta'; AnotarFalha 'Regras do kit no ChatGPT' }
+      return
+    }
+    if (-not $bash) { return }
+    if (-not (ConferirNode)) { AnotarFalha 'Pasta Edicoes para o ChatGPT: depende do Node, que n\u00e3o ficou pronto.'; return }
+    Write-Host -NoNewline (A '  Kit para o ChatGPT: baixando... ')
+    $E.erro = ''
+    if (-not (BaixarMarketplace)) {
+      Write-Host (A 'n\u00e3o deu certo')
+      AnotarFalha "Kit para o ChatGPT: $($E.erro)"
+      return
+    }
+    Write-Host 'pronto'
+    Write-Host -NoNewline (A '  Pasta Edicoes para o ChatGPT: preparando... ')
+    $plugin = Join-Path $MKT 'plugins\creator-hub'
+    if (-not ((Roda $NODE @((Join-Path $plugin 'ferramentas\chatgpt\preparar.cjs'), $plugin, $EDICOES, '--bash', $bash)) -and (PastaChatgptPronta))) {
+      Write-Host (A 'n\u00e3o deu certo')
+      AnotarFalha 'Pasta Edicoes para o ChatGPT: n\u00e3o consegui preparar as instru\u00e7\u00f5es do kit. Rode o instalador de novo.'
+      return
+    }
+    Write-Host 'pronto'
+    foreach ($l in ($E.saida -split "`n")) { if ($l -match '^ATEN') { Linha $l } }
+    $codex = AcharCodex
+    Registra "Programa do ChatGPT usado: $(SemUsuario $codex)"
+    LigarRegras $codex $bash
+    LigarConector $codex
+  }
+
   function Resumo {
     Titulo 'Resumo'
     if ($FALHAS.Count -eq 0) {
       if ($CHECAR) { Linha 'Tudo instalado.' } else { Linha 'Tudo pronto: programas, transcri\u00e7\u00e3o, ferramentas de v\u00eddeo e pasta Edicoes.' }
       if ($E.empresa) {
         Linha 'Este computador continua usando o kit da empresa.'
+      } elseif ((-not $CHECAR) -and $CHATGPT) {
+        Linha 'Agora feche o app do ChatGPT e abra de novo, para ele enxergar o kit.'
+        if ($E.semCodex) {
+          Linha "N\u00e3o consegui conferir o app do ChatGPT. Nos ajustes dele (Ctrl + v\u00edrgula), em Servidores MCP, adicione o servidor fabrica, do tipo Streamable HTTP, com o endere\u00e7o $KIT_MCP_URL."
+        }
+        Linha 'Nos ajustes do app (Ctrl + v\u00edrgula), entre em Servidores MCP e clique em Autenticar no fabrica. Entre com o e-mail da compra e o c\u00f3digo que chega nele.'
+        Linha 'Depois, comece uma conversa nova no Codex, na pasta Edicoes (na sua pasta de usu\u00e1rio), e escreva: $fabrica confere a instala\u00e7\u00e3o'
       } elseif (-not $CHECAR) {
         Linha 'Agora abra uma sess\u00e3o NOVA no app do Claude, na pasta Edicoes (na sua pasta de usu\u00e1rio), e digite /fabrica.'
         Linha 'A sess\u00e3o que est\u00e1 aberta agora n\u00e3o enxerga o plugin.'
@@ -679,7 +847,7 @@
     if ($CHECAR) {
       Linha 'Rode o instalador sem --checar para resolver.'
     } else {
-      Linha 'Basta rodar o instalador de novo: ele continua de onde parou. Se repetir, mostre esta mensagem ao Claude (detalhes em .creator-hub/instalador.log, na sua pasta de usu\u00e1rio).'
+      Linha ('Basta rodar o instalador de novo: ele continua de onde parou. Se repetir, mostre esta mensagem ao ' + $APP + ' (detalhes em .creator-hub/instalador.log, na sua pasta de usu\u00e1rio).')
     }
   }
 
@@ -726,7 +894,7 @@
     $env:HYPERFRAMES_NO_UPDATE_CHECK = '1'
     Remove-Item Env:VIRTUAL_ENV, Env:PYTHONHOME, Env:PYTHONPATH -ErrorAction SilentlyContinue
 
-    Titulo 'Kit de edi\u00e7\u00e3o do Creator Hub'
+    if ($CHATGPT) { Titulo 'Kit de edi\u00e7\u00e3o do Creator Hub, para o app do ChatGPT' } else { Titulo 'Kit de edi\u00e7\u00e3o do Creator Hub' }
     $livre = $null
     try { $livre = [math]::Floor((Get-PSDrive -Name ($HOME.Substring(0, 1)) -ErrorAction Stop).Free / 1GB) } catch {}
     if ($null -ne $livre) {
@@ -776,9 +944,13 @@
         AnotarFalha 'Pasta Edicoes: n\u00e3o consegui criar a pasta na sua pasta de usu\u00e1rio.'
       }
     }
-    CopiarInicial 'CLAUDE.md'
-    CopiarInicial '.claude/settings.json'
-    InstalarPlugin
+    if ($CHATGPT) {
+      InstalarChatgpt
+    } else {
+      CopiarInicial 'CLAUDE.md'
+      CopiarInicial '.claude/settings.json'
+      InstalarPlugin
+    }
 
     # O cache so serve para retomar uma instalacao interrompida.
     if ((-not $CHECAR) -and $FALHAS.Count -eq 0) {

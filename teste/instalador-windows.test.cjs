@@ -43,3 +43,25 @@ test("instalador do Windows: registra o programa usado sem o nome da pessoa e di
   assert.match(ps1, /digite \/mcp nessa sess\\u00e3o nova do app/);
   assert.doesNotMatch(ps1, /este comando n\\u00e3o rodou dentro do Claude/);
 });
+
+// Modo ChatGPT no Windows
+test("instalador do Windows: o modo ChatGPT só liga quando a pessoa pede, e o do Claude segue igual", () => {
+  assert.match(ps1, /\$CHATGPT = \(\$args -contains '--chatgpt'\) -or \(\$args -contains '-chatgpt'\) -or \(\$env:KIT_CHATGPT -eq '1'\)/);
+  assert.match(ps1, /if \(\$CHATGPT\) \{\n      InstalarChatgpt\n    \} else \{\n      CopiarInicial 'CLAUDE\.md'\n      CopiarInicial '\.claude\/settings\.json'\n      InstalarPlugin\n    \}/);
+});
+
+test("instalador do Windows: o conector é o mesmo do plugin, e a configuração do app volta se não abrir", () => {
+  const url = JSON.parse(fs.readFileSync(path.join(__dirname, "../plugins/creator-hub/.mcp.json"), "utf8")).mcpServers.fabrica.url;
+  assert.ok(ps1.includes(`$KIT_MCP_URL = '${url}'`));
+  const corpo = ps1.slice(ps1.indexOf("function LigarConector"), ps1.indexOf("function EhNosso"));
+  assert.match(corpo, /GravarTexto \$CODEX_CONFIG \$antes/);
+  assert.doesNotMatch(corpo, /mcp', 'add'/, "o mcp add abre o navegador e fica esperando");
+});
+
+test("instalador do Windows: sem o Git para e explica; nunca instala o Git nem chama o bash sem caminho", () => {
+  const corpo = ps1.slice(ps1.indexOf("function InstalarChatgpt"), ps1.indexOf("function Resumo"));
+  assert.match(corpo, /git-scm\.com\/download\/win/);
+  assert.match(corpo, /if \(-not \$bash\) \{ return \}/);
+  assert.doesNotMatch(ps1, /winget|choco /);
+  assert.doesNotMatch(ps1, /& bash /);
+});
