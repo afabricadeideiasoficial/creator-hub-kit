@@ -67,6 +67,6 @@ test("instalador do Windows: sem o Git para e explica; nunca instala o Git nem c
 });
 
 test("instalador do Windows: sem KIT_RAMO, tudo vem do main", () => {
-  assert.match(ps1, /\$RAMO = 'main'\n  if \(\$env:KIT_RAMO -match '\^\[A-Za-z0-9\._-\]\+\$'\) \{ \$RAMO = \$env:KIT_RAMO \}/);
-  assert.equal(ps1.match(/creator-hub-kit\/(zip\/refs\/heads\/)?\$RAMO"/g).length, 2);
+  assert.match(ps1, /\$KIT_RAW = '[^']+\/main'\n/);
+  assert.match(ps1, /\$KIT_ZIP = '[^']+\/main'\n  if \(\$env:KIT_RAMO -match '\^\[A-Za-z0-9\._-\]\+\$'\) \{/);
 });

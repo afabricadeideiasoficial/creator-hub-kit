@@ -42,11 +42,13 @@
   # Pacotes de Python publicados ate esta data: o assinante recebe o que foi testado, nao o lancamento de hoje.
   $PYTHON_PACOTES_ATE = '2026-11-01T00:00:00Z'
 
-  $RAMO = 'main'
-  if ($env:KIT_RAMO -match '^[A-Za-z0-9._-]+$') { $RAMO = $env:KIT_RAMO }
-  $KIT_RAW = "https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/$RAMO"
+  $KIT_RAW = 'https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main'
   $KIT_MCP_URL = 'https://kit.creatorflowia.com/mcp'
-  $KIT_ZIP = "https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/zip/refs/heads/$RAMO"
+  $KIT_ZIP = 'https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/zip/refs/heads/main'
+  if ($env:KIT_RAMO -match '^[A-Za-z0-9._-]+$') {
+    $KIT_RAW = $KIT_RAW -replace '/main$', "/$env:KIT_RAMO"
+    $KIT_ZIP = $KIT_ZIP -replace '/main$', "/$env:KIT_RAMO"
+  }
   $ARQ_TRANSCRICAO = 'plugins/creator-hub/ferramentas/transcribe_local.py'
   $ARQ_PACKAGE = 'plugins/creator-hub/ferramentas/modelo/package.json'
   $ARQ_LOCK = 'plugins/creator-hub/ferramentas/modelo/package-lock.json'
