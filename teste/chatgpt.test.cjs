@@ -338,3 +338,8 @@ test("chatgpt: no Mac, as skills não têm nada do Windows", () => {
     for (const p of [/bash\.exe/, /powershell/i, /Get-Content/, /Ctrl \+ vírgula/]) assert.ok(!p.test(texto), `${path.relative(edicoes, arq)}: ${p}`);
   }
 });
+
+test("chatgpt: skill com quebra de linha do Windows sai igual à do Mac", () => {
+  const texto = fs.readFileSync(path.join(PLUGIN, "skills/novo-video/SKILL.md"), "utf8").replaceAll("\r\n", "\n");
+  assert.equal(paraChatGPT(texto.replaceAll("\n", "\r\n"), "R", true), paraChatGPT(texto, "R", true));
+});

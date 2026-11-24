@@ -127,7 +127,8 @@ function noWindows(texto, { raiz, casa, bash }) {
 }
 
 function paraChatGPT(texto, raiz, comAviso, casa = "$HOME", bash = "") {
-  let saida = texto;
+  // um Git do Windows pode ter trocado as quebras de linha dos arquivos
+  let saida = texto.replaceAll("\r\n", "\n");
   // a troca vai por função: um "$" no texto novo (o caminho, o "$novo-video") entra como está
   for (const [de, para] of trocas(raiz, casa)) saida = saida.replace(de, () => para);
   if (comAviso) {

@@ -11,6 +11,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     steps:
+      - name: Arquivos como no download do kit (sem trocar as quebras de linha)
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
@@ -24,8 +26,7 @@ jobs:
 
       - name: Testes do kit
         shell: powershell
-        continue-on-error: true
-        run: node --test --test-name-pattern="chatgpt|instalador do Windows" (Get-ChildItem teste\*.test.cjs | ForEach-Object FullName)
+        run: node --test --test-name-pattern="chatgpt no Windows|instalador do Windows|quebra de linha" teste/chatgpt.test.cjs teste/instalador-windows.test.cjs
 
       - name: Do zero, como a pessoa cola (iex)
         shell: powershell
