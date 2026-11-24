@@ -22,7 +22,7 @@ if [ -z "$faltam" ]; then
   for prog in ffmpeg ffprobe node; do
     achado=$(command -v "$prog" 2>/dev/null || command -v "$prog.exe" 2>/dev/null)
     [ -n "$achado" ] && [ -x "$achado" ] || faltam="$faltam
-- $prog: está na pasta, mas o kit não consegue chamar ($KIT/bin). Rode a instalação de novo e abra o app do Claude outra vez."
+- $prog: está na pasta, mas o kit não consegue chamar ($KIT/bin). Rode a instalação de novo e abra o app outra vez."
   done
 fi
 
