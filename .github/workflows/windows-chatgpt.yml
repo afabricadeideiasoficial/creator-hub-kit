@@ -107,6 +107,18 @@ jobs:
           codex.cmd sandbox --help
           "== variaveis"; codex.cmd sandbox -- cmd /c "set CODEX"
           "== escrever em .creator-hub"; codex.cmd sandbox -- cmd /c "echo x> $HOME\.creator-hub\dentro.txt"; Test-Path $HOME\.creator-hub\dentro.txt
+          "== navegador invisivel: fora e dentro"
+          $chrome = (Get-ChildItem -Recurse $HOME\.cache\hyperframes\chrome -Filter chrome-headless-shell.exe | Select-Object -First 1).FullName
+          (& $chrome --no-first-run --dump-dom about:blank 2>&1 | Out-String).Trim()
+          (codex.cmd sandbox -- $chrome --no-first-run --dump-dom about:blank 2>&1 | Out-String).Trim()
+          "== modo da pasta confiavel, com cada tipo de area protegida"
+          Set-Location $HOME\Edicoes
+          foreach ($tipo in 'nenhum', 'unelevated', 'elevated') {
+            $extra = @(); if ($tipo -ne 'nenhum') { $extra = @('-c', "windows.sandbox=$tipo") }
+            $t = codex.cmd @extra debug prompt-input oi 2>&1 | Out-String
+            "${tipo}: " + [regex]::Match($t, 'sandbox_mode`? is `[a-z-]+`').Value + ' | ' + [regex]::Match($t, 'Network access is [a-z]+').Value + ' | ' + [regex]::Match($t, 'The writable root[^.]{0,200}').Value
+          }
+          Get-Content -Encoding UTF8 $HOME\.codex\config.toml
           "== transcricao"; codex.cmd sandbox -- "$HOME\.creator-hub\video-use\.venv\Scripts\python.exe" -c "import faster_whisper; print('importou')"
 
       - name: Por cima e conferir
@@ -128,6 +140,7 @@ jobs:
           iex (Get-Content -Raw -Encoding UTF8 instalador\instalar.ps1)
           if ([IO.File]::ReadAllText($c) -ne $quebrada) { throw 'mexeu na configuracao quebrada' }
           'voltou igual'
+          exit 0
 
       - name: Modo Claude igual ao do main
         shell: powershell
@@ -140,6 +153,7 @@ jobs:
           $b
           if ($a -ne $b) { Compare-Object ($a -split "`n") ($b -split "`n"); throw 'o modo Claude mudou' }
           'igual'
+          exit 0
 
       - name: Sem o Git, para e explica
         shell: powershell
@@ -152,3 +166,4 @@ jobs:
             $saida
             if ($saida -notmatch 'git-scm.com/download/win') { throw 'nao explicou o Git' }
           } finally { Rename-Item 'C:\Program Files\Git-escondido' 'Git' }
+          exit 0
