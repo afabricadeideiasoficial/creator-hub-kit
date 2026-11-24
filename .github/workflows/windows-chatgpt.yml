@@ -9,7 +9,7 @@ permissions:
 jobs:
   instalar:
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: Arquivos como no download do kit (sem trocar as quebras de linha)
         run: git config --global core.autocrlf false
@@ -104,22 +104,24 @@ jobs:
         continue-on-error: true
         timeout-minutes: 8
         run: |
-          codex.cmd sandbox --help
-          "== variaveis"; codex.cmd sandbox -- cmd /c "set CODEX"
-          "== escrever em .creator-hub"; codex.cmd sandbox -- cmd /c "echo x> $HOME\.creator-hub\dentro.txt"; Test-Path $HOME\.creator-hub\dentro.txt
+          $ErrorActionPreference = 'Continue'
+          function Roda($linha) { cmd /c "$linha 2>&1" | ForEach-Object { "$_" } | Select-Object -First 6 }
+          "== escrever em .creator-hub"; Roda "codex.cmd sandbox -- cmd /c `"echo x> $HOME\.creator-hub\dentro.txt`""; Test-Path $HOME\.creator-hub\dentro.txt
+          "== transcricao"; Roda "codex.cmd sandbox -- `"$HOME\.creator-hub\video-use\.venv\Scripts\python.exe`" -c `"import faster_whisper; print('importou')`""
           "== navegador invisivel: fora e dentro"
           $chrome = (Get-ChildItem -Recurse $HOME\.cache\hyperframes\chrome -Filter chrome-headless-shell.exe | Select-Object -First 1).FullName
-          (& $chrome --no-first-run --dump-dom about:blank 2>&1 | Out-String).Trim()
-          (codex.cmd sandbox -- $chrome --no-first-run --dump-dom about:blank 2>&1 | Out-String).Trim()
+          Roda "`"$chrome`" --no-first-run --dump-dom about:blank"
+          Roda "codex.cmd sandbox -- `"$chrome`" --no-first-run --dump-dom about:blank"
           "== modo da pasta confiavel, com cada tipo de area protegida"
+          Get-Content -Encoding UTF8 $HOME\.codex\config.toml
           Set-Location $HOME\Edicoes
           foreach ($tipo in 'nenhum', 'unelevated', 'elevated') {
-            $extra = @(); if ($tipo -ne 'nenhum') { $extra = @('-c', "windows.sandbox=$tipo") }
-            $t = codex.cmd @extra debug prompt-input oi 2>&1 | Out-String
-            "${tipo}: " + [regex]::Match($t, 'sandbox_mode`? is `[a-z-]+`').Value + ' | ' + [regex]::Match($t, 'Network access is [a-z]+').Value + ' | ' + [regex]::Match($t, 'The writable root[^.]{0,200}').Value
+            $extra = ''; if ($tipo -ne 'nenhum') { $extra = "-c windows.sandbox=$tipo" }
+            $t = (cmd /c "codex.cmd $extra debug prompt-input oi 2>&1" | Out-String)
+            "${tipo}: " + [regex]::Match($t, 'sandbox_mode`? is `[a-z-]+`').Value + ' | ' + [regex]::Match($t, 'Network access is [a-z]+').Value + ' | ' + [regex]::Match($t, 'The writable root.{0,240}').Value
+            if ($t -notmatch 'sandbox_mode') { $t.Substring(0, [Math]::Min(400, $t.Length)) }
           }
-          Get-Content -Encoding UTF8 $HOME\.codex\config.toml
-          "== transcricao"; codex.cmd sandbox -- "$HOME\.creator-hub\video-use\.venv\Scripts\python.exe" -c "import faster_whisper; print('importou')"
+          exit 0
 
       - name: Por cima e conferir
         shell: powershell
@@ -153,6 +155,30 @@ jobs:
           $b
           if ($a -ne $b) { Compare-Object ($a -split "`n") ($b -split "`n"); throw 'o modo Claude mudou' }
           'igual'
+          exit 0
+
+      - name: Modo Claude inteiro, do zero, igual ao do main
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Continue'
+          npm i -g @anthropic-ai/claude-code@2.1.325 --no-audit --no-fund
+          git show origin/main:instalador/instalar.ps1 | Out-File -Encoding ascii $env:RUNNER_TEMP\main.ps1
+          $saidas = @{}
+          foreach ($v in 'main', 'novo') {
+            $casa = "D:\casa-$v"; New-Item -ItemType Directory -Force $casa, "$casa\AppData\Roaming", "$casa\AppData\Local" | Out-Null
+            $arq = 'instalador\instalar.ps1'; if ($v -eq 'main') { $arq = "$env:RUNNER_TEMP\main.ps1" }
+            $antigos = @{}; foreach ($n in 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA', 'KIT_FONTE') { $antigos[$n] = [Environment]::GetEnvironmentVariable($n) }
+            $env:USERPROFILE = $casa; $env:HOMEDRIVE = 'D:'; $env:HOMEPATH = "\casa-$v"; $env:APPDATA = "$casa\AppData\Roaming"; $env:LOCALAPPDATA = "$casa\AppData\Local"; $env:KIT_FONTE = $env:GITHUB_WORKSPACE
+            $saidas[$v] = (powershell -NoProfile -ExecutionPolicy Bypass -File $arq | Out-String) -replace '\d+ GB', 'N GB'
+            "${v}: saida $LASTEXITCODE"
+            foreach ($n in $antigos.Keys) { [Environment]::SetEnvironmentVariable($n, $antigos[$n]) }
+            "pasta Edicoes: " + ((Get-ChildItem -Force -Recurse "$casa\Edicoes" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName.Substring($casa.Length) }) -join ', ')
+            "codex: " + (Test-Path "$casa\.codex")
+          }
+          $saidas['novo']
+          if ($saidas['main'] -ne $saidas['novo']) { Compare-Object ($saidas['main'] -split "`n") ($saidas['novo'] -split "`n"); throw 'a instalacao do Claude mudou' }
+          if ($saidas['novo'] -notmatch 'ligando na pasta Edicoes\.\.\. pronto') { throw 'o plugin do Claude nao ligou: a comparacao nao vale' }
+          'instalacao do Claude identica'
           exit 0
 
       - name: Sem o Git, para e explica
