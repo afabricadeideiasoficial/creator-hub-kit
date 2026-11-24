@@ -133,6 +133,17 @@ jobs:
           $n = (Select-String -Path $HOME\.codex\config.toml -Pattern 'mcp_servers.fabrica').Count
           if ($n -ne 1) { throw "conector declarado $n vezes" }
 
+      - name: Pelo endereco do ramo, como no teste com uma pessoa
+        shell: powershell
+        run: |
+          $env:KIT_CHATGPT = '1'; $env:KIT_RAMO = 'chatgpt-windows'; $env:KIT_FONTE = ''
+          irm https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/chatgpt-windows/instalador/instalar.ps1 | iex
+          "saida: $LASTEXITCODE"; if ($LASTEXITCODE -ne 0) { exit 1 }
+          $skill = Get-Content -Encoding UTF8 -Raw $HOME\Edicoes\.agents\skills\fabrica\SKILL.md
+          if ($skill -notmatch 'bash\.exe') { throw 'veio o kit do main, sem o Windows' }
+          'kit do ramo'
+          exit 0
+
       - name: Configuracao do app quebrada volta como estava
         shell: powershell
         run: |

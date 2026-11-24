@@ -7,6 +7,7 @@
 #   powershell -ExecutionPolicy Bypass -File instalar.ps1 [--checar] [--chatgpt]    o mesmo, rodando do arquivo
 #
 # So para testar: $env:KIT_FONTE=<pasta> copia os arquivos do kit dessa pasta em vez de baixar do GitHub.
+#                 $env:KIT_RAMO=<ramo> baixa o kit desse ramo do repositorio, e nao do main.
 #
 # Onde as coisas ficam: tudo em $HOME\.creator-hub e $HOME\Edicoes, com quatro excecoes. Tres tem o caminho
 # fixo nas proprias ferramentas: $HOME\.cache\puppeteer (o Chrome do Puppeteer), $HOME\.cache\hyperframes
@@ -41,9 +42,11 @@
   # Pacotes de Python publicados ate esta data: o assinante recebe o que foi testado, nao o lancamento de hoje.
   $PYTHON_PACOTES_ATE = '2026-11-01T00:00:00Z'
 
-  $KIT_RAW = 'https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main'
+  $RAMO = 'main'
+  if ($env:KIT_RAMO -match '^[A-Za-z0-9._-]+$') { $RAMO = $env:KIT_RAMO }
+  $KIT_RAW = "https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/$RAMO"
   $KIT_MCP_URL = 'https://kit.creatorflowia.com/mcp'
-  $KIT_ZIP = 'https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/zip/refs/heads/main'
+  $KIT_ZIP = "https://codeload.github.com/afabricadeideiasoficial/creator-hub-kit/zip/refs/heads/$RAMO"
   $ARQ_TRANSCRICAO = 'plugins/creator-hub/ferramentas/transcribe_local.py'
   $ARQ_PACKAGE = 'plugins/creator-hub/ferramentas/modelo/package.json'
   $ARQ_LOCK = 'plugins/creator-hub/ferramentas/modelo/package-lock.json'
