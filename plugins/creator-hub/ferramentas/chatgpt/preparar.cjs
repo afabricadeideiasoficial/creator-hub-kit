@@ -15,7 +15,7 @@ const COMANDO_MAC =
   "curl -fsSL https://raw.githubusercontent.com/afabricadeideiasoficial/creator-hub-kit/main/instalador/instalar.sh | zsh -s -- --chatgpt";
 const SKILLS_DO_KIT = /\b(novo-video|cortes|plano-continuo|mascote-3d|cliente-novo|referencia|fabrica)\b/;
 const LOGIN =
-  "abrir os ajustes do app do ChatGPT (Cmd + vírgula), entrar em Servidores MCP e clicar em Autenticar no `fabrica`";
+  "abrir as configurações do app do ChatGPT (Cmd + vírgula), entrar em Plugins, na aba MCPs, e clicar em Autenticar no `fabrica` (em versões mais antigas do app, o caminho é Servidores MCP)";
 
 // Guias que ficam fora das skills e que um script mostraria com o texto do Claude: vão adaptados para references/.
 const GUIAS = { cortes: ["ferramentas/cortes/editar-um-corte.md"] };
