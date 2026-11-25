@@ -76,6 +76,30 @@ jobs:
           [IO.File]::WriteAllText("$PWD\comando.sh", "mkdir -p teste-servidor && curl -sS --fail -o teste-servidor/x.json `"https://kit.creatorflowia.com/.well-known/oauth-protected-resource`" ; echo saiu `$?; ls teste-servidor`n")
           & $bash comando.sh
 
+      - name: Render de verdade, emendas e gravacao em pedacos (so para saber)
+        shell: powershell
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $skill = Get-Content -Encoding UTF8 -Raw $HOME\Edicoes\.agents\skills\fabrica\SKILL.md
+          $cmd = [regex]::Match($skill, '(?m)^& ".*conferir_instalacao\.sh"').Value
+          $bash = [regex]::Match($cmd, '^& "([^"]+)"').Groups[1].Value
+          $ferr = [regex]::Match($cmd, '"([^"]+/ferramentas)/').Groups[1].Value
+          $p = "$HOME\Edicoes\Cliente Render"
+          New-Item -ItemType Directory -Force $p | Out-Null
+          cmd /c mklink /J "$p\node_modules" "$HOME\.creator-hub\pacotes\node_modules"
+          $html = '<!doctype html><html><head><meta charset="utf-8"><script src="node_modules/gsap/dist/gsap.min.js"></script><style>body{margin:0;background:#000}#root{position:relative;width:1080px;height:1920px;overflow:hidden;background:#1a1030}#c{position:absolute;left:100px;top:800px;font:700 90px Arial;color:#fff}</style></head><body><div id="root" data-composition-id="t" data-start="0" data-width="1080" data-height="1920" data-duration="6"><div id="c">Teste</div></div><script>window.__timelines=window.__timelines||{};var tl=gsap.timeline({paused:true});tl.fromTo("#c",{x:0},{x:600,duration:5},0);tl.set({},{},6);window.__timelines["t"]=tl;</script></body></html>'
+          [IO.File]::WriteAllText("$p\index.html", $html)
+          Set-Location $p
+          function Olha($arq) { if (Test-Path $arq) { & "$HOME\.creator-hub\bin\ffprobe.exe" -v error -select_streams v:0 -show_entries stream=nb_frames,width,height -of json $arq } else { "nao gravou $arq" } }
+          "== render normal"; & $bash "$ferr/rodar_render.sh" -o "$p/normal.mp4" --fps 30 --quality draft; "saida: $LASTEXITCODE"; Olha "$p\normal.mp4"
+          "== conferencia das emendas"; & "$HOME\.creator-hub\bin\node.exe" "$ferr/conferir_emendas.cjs" 30 60; "saida: $LASTEXITCODE"
+          "== gravacao em pedacos"; $env:HF_SEGMENTED_CAPTURE = 'true'; $env:HF_SEGMENT_FRAMES = '60'; $env:HF_SEGMENT_BROWSER_RECYCLE = '1'
+          & $bash "$ferr/rodar_render.sh" -o "$p/pedacos.mp4" --fps 30 --quality draft --low-memory-mode; "saida: $LASTEXITCODE"; Olha "$p\pedacos.mp4"
+          if (Test-Path "$p\render.log") { Get-Content -Encoding UTF8 "$p\render.log" -Tail 25 }
+          exit 0
+
       - name: O que o Codex entende (sem chamar o modelo)
         shell: powershell
         continue-on-error: true
