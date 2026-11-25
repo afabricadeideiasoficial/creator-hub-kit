@@ -678,8 +678,8 @@
   # -------------------------------------------------------------------------
   # Modo ChatGPT: o app do ChatGPT roda o kit pelo Codex, e os comandos dele vao para o PowerShell. As ferramentas
   # do kit sao em bash, entao cada uma e chamada pelo Git Bash com o caminho inteiro: so "bash" pode abrir o WSL.
-  # As skills vao para Edicoes\.agents\skills (ferramentas/chatgpt/preparar.cjs). O login a pessoa faz nos ajustes do
-  # app: o "codex mcp add" abre o navegador e fica esperando, entao a linha do conector e escrita direto no arquivo.
+  # As skills vao para Edicoes\.agents\skills (ferramentas/chatgpt/preparar.cjs). O login a pessoa faz nas configuracoes
+  # do app (Plugins, aba MCPs): o "codex mcp add" abre o navegador e fica esperando, entao a linha do conector e escrita direto no arquivo.
 
   function AcharGitBash {
     $pastas = @()
@@ -739,7 +739,7 @@
       if ($existia) { GravarTexto $CODEX_CONFIG $antes } elseif (Test-Path -LiteralPath $CODEX_CONFIG) { Remove-Item -LiteralPath $CODEX_CONFIG -Force -ErrorAction Stop }
     } catch { Registra "conector, volta -> $_" }
     Write-Host (A 'n\u00e3o deu certo')
-    AnotarFalha "Conector fabrica no ChatGPT: n\u00e3o consegui cadastrar. Nos ajustes do app do ChatGPT (Ctrl + v\u00edrgula), em Servidores MCP, adicione o servidor fabrica com o endere\u00e7o $KIT_MCP_URL."
+    AnotarFalha "Conector fabrica no ChatGPT: n\u00e3o consegui cadastrar. Nas configura\u00e7\u00f5es do app do ChatGPT (Ctrl + v\u00edrgula), em Plugins, na aba MCPs, clique em Adicionar e em Adicionar servidor MCP: nome fabrica, endere\u00e7o $KIT_MCP_URL."
   }
 
   function EhNosso($arquivo) {
@@ -836,10 +836,10 @@
       } elseif ((-not $CHECAR) -and $CHATGPT) {
         Linha 'Agora feche o app do ChatGPT e abra de novo, para ele enxergar o kit.'
         if ($E.semCodex) {
-          Linha "N\u00e3o consegui conferir o app do ChatGPT. Nos ajustes dele (Ctrl + v\u00edrgula), em Servidores MCP, adicione o servidor fabrica, do tipo Streamable HTTP, com o endere\u00e7o $KIT_MCP_URL."
+          Linha "N\u00e3o consegui conferir o app do ChatGPT. Nas configura\u00e7\u00f5es dele (Ctrl + v\u00edrgula), em Plugins, na aba MCPs, clique em Adicionar e em Adicionar servidor MCP: nome fabrica, tipo Streamable HTTP, endere\u00e7o $KIT_MCP_URL."
         }
-        Linha 'Nos ajustes do app (Ctrl + v\u00edrgula), entre em Servidores MCP e clique em Autenticar no fabrica. Entre com o e-mail da compra e o c\u00f3digo que chega nele.'
-        Linha 'Depois, comece uma conversa nova no Codex, na pasta Edicoes (na sua pasta de usu\u00e1rio), e escreva: $fabrica confere a instala\u00e7\u00e3o'
+        Linha 'Nas configura\u00e7\u00f5es do app (Ctrl + v\u00edrgula), entre em Plugins, na aba MCPs, e clique em Autenticar no fabrica. Entre com o e-mail da compra e o c\u00f3digo que chega nele.'
+        Linha 'Depois, no Codex, clique em Novo chat, escolha o projeto Edicoes (a pasta fica na sua pasta de usu\u00e1rio) e escreva: $fabrica confere a instala\u00e7\u00e3o'
       } elseif (-not $CHECAR) {
         Linha 'Agora abra uma sess\u00e3o NOVA no app do Claude, na pasta Edicoes (na sua pasta de usu\u00e1rio), e digite /fabrica.'
         Linha 'A sess\u00e3o que est\u00e1 aberta agora n\u00e3o enxerga o plugin.'
