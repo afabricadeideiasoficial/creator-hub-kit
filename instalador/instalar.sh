@@ -311,10 +311,10 @@ resumo() {
     elif [ "$CHECAR" != 1 ] && [ "$MODO" = chatgpt ]; then
       linha "Agora feche o app do ChatGPT (Cmd + Q) e abra de novo, para ele enxergar o kit."
       if [ "$SEM_CODEX" = 1 ]; then
-        linha "Não achei o app do ChatGPT neste Mac. Depois de instalar o app, nos ajustes dele (Cmd + vírgula), em Servidores MCP, adicione o servidor fabrica com o endereço $KIT_MCP_URL."
+        linha "Não achei o app do ChatGPT neste Mac. Depois de instalar o app, nas configurações dele (Cmd + vírgula), em Plugins, na aba MCPs, clique em Adicionar e em Adicionar servidor MCP: nome fabrica, endereço $KIT_MCP_URL."
       fi
-      linha "Nos ajustes do app (Cmd + vírgula), entre em Servidores MCP e clique em Autenticar no fabrica. Entre com o e-mail da compra e o código que chega nele."
-      linha 'Depois, comece uma conversa nova no Codex, na pasta Edicoes (na sua pasta de usuário), e escreva: $fabrica confere a instalação'
+      linha "Nas configurações do app (Cmd + vírgula), entre em Plugins, na aba MCPs, e clique em Autenticar no fabrica. Entre com o e-mail da compra e o código que chega nele."
+      linha 'Depois, no Codex, clique em Novo chat e escolha o projeto Edicoes (a pasta fica na sua pasta de usuário), e escreva: $fabrica confere a instalação'
     elif [ "$CHECAR" != 1 ]; then
       linha "Agora abra uma sessão NOVA no app do Claude, na pasta Edicoes (na sua pasta de usuário), e digite /fabrica."
       linha "Se o kit pedir login, digite /mcp nessa sessão nova do app e escolha fabrica. Funciona ali mesmo, sem abrir terminal."
@@ -443,7 +443,7 @@ instalar_plugin() {
 # ---------------------------------------------------------------------------
 # Modo ChatGPT (--chatgpt): o app do ChatGPT roda o kit pelo Codex. As skills vão para ~/Edicoes/.agents/skills,
 # com o caminho real do plugin (ferramentas/chatgpt/preparar.cjs), e o conector fabrica entra na configuração
-# do Codex. O login a pessoa faz nos ajustes do app (Servidores MCP › Autenticar): o "codex mcp add" abre o
+# do Codex. O login a pessoa faz nas configurações do app (Plugins › MCPs › Autenticar): o "codex mcp add" abre o
 # navegador e fica esperando o login, então aqui a linha do conector é escrita direto no arquivo, igual à dele.
 
 # O Codex vem dentro do app do ChatGPT e não fica no PATH.
@@ -490,7 +490,7 @@ ligar_conector() {
   # o app do ChatGPT não pode ficar pior do que estava
   if [ -f "$copia" ]; then cp "$copia" "$CODEX_CONFIG"; else rm -f "$CODEX_CONFIG"; fi
   printf 'não deu certo\n'
-  anotar_falha "Conector fabrica no ChatGPT: não consegui cadastrar. Nos ajustes do app do ChatGPT (Cmd + vírgula), em Servidores MCP, adicione o servidor fabrica com o endereço $KIT_MCP_URL."
+  anotar_falha "Conector fabrica no ChatGPT: não consegui cadastrar. Nas configurações do app do ChatGPT (Cmd + vírgula), em Plugins, na aba MCPs, clique em Adicionar e em Adicionar servidor MCP: nome fabrica, endereço $KIT_MCP_URL."
   return 1
 }
 

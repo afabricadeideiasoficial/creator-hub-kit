@@ -86,7 +86,7 @@ test("chatgpt: cada skill abre com o aviso do ChatGPT, depois do cabeçalho", ()
     assert.match(texto, /^---\nname: /, nome);
     const fimCabecalho = texto.indexOf("\n---\n", 4);
     assert.ok(texto.indexOf("Neste app (ChatGPT") > fimCabecalho, nome);
-    assert.match(texto, /Servidores MCP/, nome);
+    assert.match(texto, /Plugins, na aba MCPs/, nome);
   }
 });
 

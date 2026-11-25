@@ -31,7 +31,8 @@ MARGENS="$(node medir_margens.cjs)"
 echo "$MARGENS" | tail -1 | grep -q "todas as telas dentro" || { echo "$MARGENS" | grep FORA; echo "Há telas fora da margem segura: ajuste o roteiro e gere de novo."; exit 1; }
 df -Pk "$V" | awk 'NR==2 && $4 < 10 * 1048576 {print "Aviso: menos de 10 GB livres no disco."}'
 
-bash "$FERRAMENTAS/rodar_render.sh" -o "$OUT" --fps "$FPS" --quality high
+# --em-pedacos: se o navegador do render travar, ele grava de novo em pedaços, sozinho.
+bash "$FERRAMENTAS/rodar_render.sh" --em-pedacos -o "$OUT" --fps "$FPS" --quality high
 
 volume() { ffmpeg -hide_banner -nostats -i "$1" -af ebur128=framelog=quiet -vn -f null - 2>&1 | tr -d '\r' | grep -E '^ +I:' | tail -1 | grep -oE -e '-[0-9.]+'; }
 LUFS=$(volume "$OUT")
